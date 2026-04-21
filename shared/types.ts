@@ -42,6 +42,81 @@ export type Position = (typeof POSITIONS)[number];
 export const ZONES = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
 export type Zone = (typeof ZONES)[number];
 
+/**
+ * Mapa zone → coluna/linha no grid 3x3 (do ponto de vista do lado observado,
+ * com a rede em cima). Usado pelo componente <Court> para posicionar as
+ * zonas numeradas.
+ *
+ *   col:  0    1    2
+ *   row 0 [ 4 ][ 3 ][ 2 ]   ← linha da frente (junto à rede)
+ *   row 1 [ 7 ][ 8 ][ 9 ]   ← meio-campo
+ *   row 2 [ 5 ][ 6 ][ 1 ]   ← fundo
+ */
+export const ZONE_GRID: Record<Zone, { col: number; row: number }> = {
+  4: { col: 0, row: 0 },
+  3: { col: 1, row: 0 },
+  2: { col: 2, row: 0 },
+  7: { col: 0, row: 1 },
+  8: { col: 1, row: 1 },
+  9: { col: 2, row: 1 },
+  5: { col: 0, row: 2 },
+  6: { col: 1, row: 2 },
+  1: { col: 2, row: 2 },
+};
+
+/**
+ * Resultados aplicáveis a cada tipo de acção.
+ * Por exemplo, um "kill" só faz sentido num "attack", um "ace" num "serve".
+ * Usado pelo scout para mostrar os botões certos em cada passo.
+ */
+export const RESULTS_BY_ACTION: Record<ActionType, readonly ActionResult[]> = {
+  serve: ["ace", "error", "in_play"],
+  reception: ["perfect", "good", "poor", "error"],
+  set: ["perfect", "good", "poor", "error"],
+  attack: ["kill", "error", "tooled", "blocked", "in_play"],
+  block: ["stuff", "touch", "error", "in_play"],
+  dig: ["perfect", "good", "poor", "error"],
+};
+
+/** Classe Tailwind para cada resultado — mantém coerência cross-components. */
+export const RESULT_COLOR: Record<ActionResult, string> = {
+  kill: "bg-emerald-600 text-white hover:bg-emerald-600/90",
+  ace: "bg-sky-600 text-white hover:bg-sky-600/90",
+  stuff: "bg-emerald-600 text-white hover:bg-emerald-600/90",
+  perfect: "bg-emerald-600 text-white hover:bg-emerald-600/90",
+  good: "bg-sky-600 text-white hover:bg-sky-600/90",
+  in_play: "bg-slate-500 text-white hover:bg-slate-500/90",
+  touch: "bg-slate-500 text-white hover:bg-slate-500/90",
+  tooled: "bg-amber-500 text-white hover:bg-amber-500/90",
+  poor: "bg-amber-500 text-white hover:bg-amber-500/90",
+  blocked: "bg-red-600 text-white hover:bg-red-600/90",
+  error: "bg-red-600 text-white hover:bg-red-600/90",
+};
+
+/** Label amigável (PT) de cada resultado. */
+export const RESULT_LABEL: Record<ActionResult, string> = {
+  kill: "Kill",
+  error: "Erro",
+  ace: "Ace",
+  tooled: "Tooled",
+  in_play: "Em jogo",
+  perfect: "Perfeito",
+  good: "Bom",
+  poor: "Fraco",
+  blocked: "Bloqueado",
+  stuff: "Stuff",
+  touch: "Toque",
+};
+
+export const ACTION_LABEL: Record<ActionType, string> = {
+  serve: "Serviço",
+  reception: "Recepção",
+  set: "Distribuição",
+  attack: "Ataque",
+  block: "Bloco",
+  dig: "Defesa",
+};
+
 export const PLANS = ["basic", "pro", "club"] as const;
 export type Plan = (typeof PLANS)[number];
 

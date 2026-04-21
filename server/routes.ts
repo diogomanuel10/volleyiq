@@ -9,6 +9,7 @@ import {
   insertActionSchema,
 } from "@shared/schema";
 import { detectPatterns } from "./ai/patterns";
+import { buildDashboard } from "./stats";
 import type { PatternDetectionInput } from "@shared/types";
 
 export const router = Router();
@@ -198,6 +199,16 @@ const patternsInputSchema = z.object({
   rotationSideOut: z.record(z.string(), z.number()),
   setterDistribution: z.record(z.string(), z.number()),
 });
+
+// ── Dashboard stats ──────────────────────────────────────────────────────
+router.get(
+  "/stats/team/:teamId/dashboard",
+  requireTeamAccess,
+  async (req: any, res) => {
+    const stats = await buildDashboard(req.teamId);
+    res.json(stats);
+  },
+);
 
 router.post("/ai/patterns", async (req, res) => {
   const parsed = patternsInputSchema.safeParse(req.body);
