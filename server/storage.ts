@@ -193,7 +193,41 @@ export async function deleteAction(id: string) {
 }
 
 // ── Checklist ────────────────────────────────────────────────────────────
+const CHECKLIST_DEFAULTS: Array<{
+  category: (typeof checklistItems.$inferInsert)["category"];
+  label: string;
+}> = [
+  { category: "lineup", label: "Definir 6 titulares e rotação inicial" },
+  { category: "lineup", label: "Confirmar líbero e opções de substituição" },
+  { category: "lineup", label: "Verificar estado físico (lesões, fadiga)" },
+  { category: "scouting", label: "Rever último jogo do adversário" },
+  { category: "scouting", label: "Identificar padrões de serviço e ataque" },
+  { category: "scouting", label: "Partilhar relatório com as atletas" },
+  { category: "tactical", label: "Plano de serviço (zonas-alvo)" },
+  { category: "tactical", label: "Esquemas de bloco vs. setter adversário" },
+  { category: "tactical", label: "Gatilhos para time-outs tácticos" },
+  { category: "logistics", label: "Equipamento e material reservados" },
+  { category: "logistics", label: "Transporte e hora de chegada confirmada" },
+];
+
 export async function listChecklist(matchId: string) {
+  const rows = await db
+    .select()
+    .from(checklistItems)
+    .where(eq(checklistItems.matchId, matchId))
+    .orderBy(checklistItems.order);
+  if (rows.length) return rows;
+  // Seed on first read — mantém a UI simples sem um passo de "criar checklist"
+  // explícito e garante que cada jogo arranca com os mesmos 11 items.
+  const seeded = CHECKLIST_DEFAULTS.map((d, i) => ({
+    id: newId(),
+    matchId,
+    category: d.category,
+    label: d.label,
+    done: false,
+    order: i,
+  }));
+  await db.insert(checklistItems).values(seeded);
   return db
     .select()
     .from(checklistItems)

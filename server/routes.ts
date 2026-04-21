@@ -9,7 +9,7 @@ import {
   insertActionSchema,
 } from "@shared/schema";
 import { detectPatterns } from "./ai/patterns";
-import { buildDashboard } from "./stats";
+import { buildDashboard, buildPostMatch, buildScoutingReport } from "./stats";
 import type { PatternDetectionInput } from "@shared/types";
 
 export const router = Router();
@@ -223,3 +223,26 @@ router.post("/ai/patterns", async (req, res) => {
     res.status(500).json({ error: "ai_failed" });
   }
 });
+
+// ── Scouting report (opponent) ───────────────────────────────────────────
+router.get(
+  "/scouting/:opponent",
+  requireTeamAccess,
+  async (req: any, res) => {
+    const opp = decodeURIComponent(req.params.opponent);
+    const report = await buildScoutingReport(req.teamId, opp);
+    if (!report) return res.status(404).json({ error: "no_data" });
+    res.json(report);
+  },
+);
+
+// ── Post-match summary ───────────────────────────────────────────────────
+router.get(
+  "/matches/:matchId/summary",
+  requireTeamAccess,
+  async (req: any, res) => {
+    const summary = await buildPostMatch(req.teamId, req.params.matchId);
+    if (!summary) return res.status(404).json({ error: "not found" });
+    res.json(summary);
+  },
+);

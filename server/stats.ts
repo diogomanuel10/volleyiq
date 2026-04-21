@@ -1,7 +1,8 @@
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "./db";
-import { actions, matches } from "@shared/schema";
-import type { Action, Match } from "@shared/schema";
+import { actions, matches, players } from "@shared/schema";
+import type { Action, Match, Player } from "@shared/schema";
+import type { PatternDetectionInput } from "@shared/types";
 
 /**
  * Agregação de KPIs para o Dashboard a partir da tabela `actions`.
@@ -187,6 +188,251 @@ function buildRotation(a: Action[]) {
       pct: rows.length ? sideOutPct(rows) : 0,
     };
   });
+}
+
+// ── Scouting report aggregation ─────────────────────────────────────────
+export interface ScoutingAggregation {
+  opponent: string;
+  sampleMatches: number;
+  matchIds: string[];
+  input: PatternDetectionInput;
+  serveZones: Array<{ zone: string; count: number }>;
+  attackZones: Array<{ zone: string; count: number }>;
+  rotationSideOut: Array<{ rotation: string; pct: number }>;
+}
+
+export async function buildScoutingReport(
+  teamId: string,
+  opponent: string,
+): Promise<ScoutingAggregation | null> {
+  const opponentMatches = await db
+    .select()
+    .from(matches)
+    .where(and(eq(matches.teamId, teamId), eq(matches.opponent, opponent)))
+    .orderBy(desc(matches.date));
+
+  if (!opponentMatches.length) return null;
+
+  const all: Action[] = [];
+  for (const m of opponentMatches) {
+    const rows = await db
+      .select()
+      .from(actions)
+      .where(eq(actions.matchId, m.id));
+    all.push(...rows);
+  }
+
+  const serveTargets = countBy(
+    all.filter((a) => a.type === "serve" && a.zoneTo != null),
+    (a) => String(a.zoneTo),
+  );
+  const attackByRotation: Record<string, Record<string, number>> = {};
+  for (const a of all) {
+    if (a.type !== "attack" || a.zoneTo == null || a.rotation == null) continue;
+    const rot = String(a.rotation);
+    const zone = String(a.zoneTo);
+    attackByRotation[rot] ??= {};
+    attackByRotation[rot][zone] = (attackByRotation[rot][zone] ?? 0) + 1;
+  }
+
+  const rotationSideOutMap: Record<string, number> = {};
+  for (let r = 1; r <= 6; r++) {
+    const rows = all.filter((a) => a.rotation === r);
+    rotationSideOutMap[`R${r}`] = rows.length ? sideOutPct(rows) : 0;
+  }
+
+  // Distribuição do distribuidor: aproximação via acções "set" por posição
+  // do jogador que distribuiu (lookup rápido via tabela players).
+  const setterPlayers = await db.select().from(players).where(eq(players.teamId, teamId));
+  const playerPos = new Map<string, Player["position"]>(
+    setterPlayers.map((p) => [p.id, p.position]),
+  );
+  const setterDistribution = countBy(
+    all.filter((a) => a.type === "set" && a.playerId),
+    (a) => playerPos.get(a.playerId!) ?? "?",
+  );
+
+  return {
+    opponent,
+    sampleMatches: opponentMatches.length,
+    matchIds: opponentMatches.map((m) => m.id),
+    input: {
+      teamId,
+      opponent,
+      sampleSize: all.length,
+      serveTargets,
+      attackByRotation,
+      rotationSideOut: rotationSideOutMap,
+      setterDistribution,
+    },
+    serveZones: Object.entries(serveTargets)
+      .map(([zone, count]) => ({ zone, count }))
+      .sort((a, b) => Number(a.zone) - Number(b.zone)),
+    attackZones: Object.entries(
+      all
+        .filter((a) => a.type === "attack" && a.zoneTo != null)
+        .reduce<Record<string, number>>((acc, a) => {
+          const z = String(a.zoneTo);
+          acc[z] = (acc[z] ?? 0) + 1;
+          return acc;
+        }, {}),
+    )
+      .map(([zone, count]) => ({ zone, count }))
+      .sort((a, b) => Number(a.zone) - Number(b.zone)),
+    rotationSideOut: Object.entries(rotationSideOutMap).map(
+      ([rotation, pct]) => ({ rotation, pct }),
+    ),
+  };
+}
+
+// ── Post-match per-player ───────────────────────────────────────────────
+export interface PlayerMatchLine {
+  playerId: string;
+  firstName: string;
+  lastName: string;
+  number: number;
+  position: Player["position"];
+  kills: number;
+  attackErrors: number;
+  attackAttempts: number;
+  killPct: number;
+  attackEff: number;
+  aces: number;
+  blocks: number;
+  digs: number;
+  receptions: number;
+  passRating: number;
+  rating: number; // 0-100
+}
+
+export interface PostMatchSummary {
+  matchId: string;
+  opponent: string;
+  setsWon: number;
+  setsLost: number;
+  totalActions: number;
+  teamKpis: DashboardStats["kpis"];
+  players: PlayerMatchLine[];
+  highlights: Array<{
+    playerId: string;
+    title: string;
+    subtitle: string;
+  }>;
+}
+
+export async function buildPostMatch(
+  teamId: string,
+  matchId: string,
+): Promise<PostMatchSummary | null> {
+  const match = await db
+    .select()
+    .from(matches)
+    .where(and(eq(matches.teamId, teamId), eq(matches.id, matchId)))
+    .get();
+  if (!match) return null;
+  const rows = await db
+    .select()
+    .from(actions)
+    .where(eq(actions.matchId, matchId));
+  const roster = await db.select().from(players).where(eq(players.teamId, teamId));
+
+  const wins = match.setsWon > match.setsLost ? 1 : 0;
+  const losses = match.setsLost > match.setsWon ? 1 : 0;
+
+  const lines: PlayerMatchLine[] = roster
+    .map((p) => {
+      const mine = rows.filter((a) => a.playerId === p.id);
+      if (!mine.length) return null;
+      const attacks = mine.filter((a) => a.type === "attack");
+      const kills = attacks.filter((a) => a.result === "kill").length;
+      const attackErr = attacks.filter(
+        (a) => a.result === "error" || a.result === "blocked",
+      ).length;
+      const recs = mine.filter((a) => a.type === "reception");
+      const recPts = recs.reduce((acc, a) => {
+        if (a.result === "perfect") return acc + 3;
+        if (a.result === "good") return acc + 2;
+        if (a.result === "poor") return acc + 1;
+        return acc;
+      }, 0);
+      const blocks = mine.filter(
+        (a) => a.type === "block" && a.result === "stuff",
+      ).length;
+      const digs = mine.filter(
+        (a) => a.type === "dig" && (a.result === "perfect" || a.result === "good"),
+      ).length;
+      const aces = mine.filter(
+        (a) => a.type === "serve" && a.result === "ace",
+      ).length;
+
+      const killPct = attacks.length ? (kills / attacks.length) * 100 : 0;
+      const eff = attacks.length ? (kills - attackErr) / attacks.length : 0;
+      const passRating = recs.length ? recPts / recs.length : 0;
+      // Rating agregado 0-100 — soma pondera ataque, serviço, bloco, defesa e passe.
+      const rating =
+        Math.min(100, Math.round(
+          killPct * 0.4 +
+            aces * 4 +
+            blocks * 5 +
+            digs * 1.5 +
+            (passRating / 3) * 30,
+        ));
+
+      const line: PlayerMatchLine = {
+        playerId: p.id,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        number: p.number,
+        position: p.position,
+        kills,
+        attackErrors: attackErr,
+        attackAttempts: attacks.length,
+        killPct: round1(killPct),
+        attackEff: round3(eff),
+        aces,
+        blocks,
+        digs,
+        receptions: recs.length,
+        passRating: round2(passRating),
+        rating,
+      };
+      return line;
+    })
+    .filter((x): x is PlayerMatchLine => !!x)
+    .sort((a, b) => b.rating - a.rating);
+
+  const top = lines.slice(0, 3);
+  const highlights = top.map((l) => ({
+    playerId: l.playerId,
+    title: `#${l.number} ${l.firstName} ${l.lastName}`,
+    subtitle: `${l.kills} kills · ${l.aces} aces · ${l.blocks} blocks · rating ${l.rating}`,
+  }));
+
+  return {
+    matchId,
+    opponent: match.opponent,
+    setsWon: match.setsWon,
+    setsLost: match.setsLost,
+    totalActions: rows.length,
+    teamKpis: {
+      killPct: killPct(rows),
+      sideOutPct: sideOutPct(rows),
+      passRating: passRating(rows),
+      serveAcePct: serveAcePct(rows),
+      attackEfficiency: attackEff(rows),
+      record: `${wins}-${losses}`,
+    },
+    players: lines,
+    highlights,
+  };
+}
+
+function countBy<T>(arr: T[], key: (t: T) => string) {
+  return arr.reduce<Record<string, number>>((acc, x) => {
+    const k = key(x);
+    acc[k] = (acc[k] ?? 0) + 1;
+    return acc;
+  }, {});
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────
