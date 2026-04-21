@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TeamSwitcher } from "./TeamSwitcher";
 
 const items = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -28,7 +29,7 @@ export function Sidebar() {
   const [location] = useLocation();
   return (
     <aside className="hidden md:flex md:w-60 shrink-0 flex-col border-r bg-card">
-      <div className="p-5 border-b">
+      <div className="p-4 border-b space-y-3">
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 rounded-lg bg-primary text-primary-foreground grid place-items-center font-bold">
             V
@@ -40,6 +41,7 @@ export function Sidebar() {
             </div>
           </div>
         </div>
+        <TeamSwitcher />
       </div>
       <nav className="flex-1 p-2 space-y-0.5">
         {items.map((it) => {

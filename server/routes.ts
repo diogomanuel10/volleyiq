@@ -22,6 +22,15 @@ router.get("/teams", async (req, res) => {
   res.json(list);
 });
 
+/**
+ * Em dev, se o utilizador não tiver equipa nenhuma, cria uma com roster seed.
+ * Evita o ecrã vazio sem obrigar a construir já o wizard de onboarding.
+ */
+router.post("/teams/bootstrap", async (req, res) => {
+  const team = await storage.ensureBootstrapTeam(req.user!.uid);
+  res.json(team);
+});
+
 router.post("/teams", async (req, res) => {
   const parsed = insertTeamSchema.safeParse({
     ...req.body,
@@ -75,6 +84,33 @@ router.get(
   },
 );
 
+const updatePlayerSchema = insertPlayerSchema.partial();
+
+router.patch(
+  "/players/:id",
+  requireTeamAccess,
+  async (req: any, res) => {
+    const parsed = updatePlayerSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json(parsed.error.flatten());
+    const player = await storage.updatePlayer(
+      req.teamId,
+      req.params.id,
+      parsed.data,
+    );
+    if (!player) return res.status(404).json({ error: "not found" });
+    res.json(player);
+  },
+);
+
+router.delete(
+  "/players/:id",
+  requireTeamAccess,
+  async (req: any, res) => {
+    await storage.deletePlayer(req.teamId, req.params.id);
+    res.status(204).end();
+  },
+);
+
 // ── Matches ──────────────────────────────────────────────────────────────
 router.get("/matches", requireTeamAccess, async (req: any, res) => {
   res.json(await storage.listMatches(req.teamId));
@@ -91,6 +127,33 @@ router.post("/matches", async (req, res) => {
   const match = await storage.createMatch(parsed.data);
   res.status(201).json(match);
 });
+
+const updateMatchSchema = insertMatchSchema.partial();
+
+router.patch(
+  "/matches/:id",
+  requireTeamAccess,
+  async (req: any, res) => {
+    const parsed = updateMatchSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json(parsed.error.flatten());
+    const match = await storage.updateMatch(
+      req.teamId,
+      req.params.id,
+      parsed.data,
+    );
+    if (!match) return res.status(404).json({ error: "not found" });
+    res.json(match);
+  },
+);
+
+router.delete(
+  "/matches/:id",
+  requireTeamAccess,
+  async (req: any, res) => {
+    await storage.deleteMatch(req.teamId, req.params.id);
+    res.status(204).end();
+  },
+);
 
 // ── Actions (Live Scout) ─────────────────────────────────────────────────
 router.get("/matches/:matchId/actions", async (req, res) => {

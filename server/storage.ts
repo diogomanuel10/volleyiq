@@ -53,6 +53,48 @@ export async function userBelongsToTeam(uid: string, teamId: string) {
   return !!row;
 }
 
+/**
+ * Garante que um utilizador tem pelo menos uma equipa. Em modo dev o backend
+ * chama isto no arranque para que o frontend tenha algo com que trabalhar sem
+ * um ecrã de onboarding.
+ */
+export async function ensureBootstrapTeam(uid: string) {
+  const existing = await listTeamsForUser(uid);
+  if (existing.length) return existing[0];
+
+  const team = await createTeam(uid, {
+    name: "VolleyIQ FC",
+    plan: "pro",
+    ownerUid: uid,
+  });
+
+  const seed: Array<{ n: number; fn: string; ln: string; pos: any }> = [
+    { n: 1, fn: "Rita", ln: "Almeida", pos: "L" },
+    { n: 3, fn: "Sofia", ln: "Costa", pos: "S" },
+    { n: 5, fn: "Inês", ln: "Ferreira", pos: "OH" },
+    { n: 6, fn: "Mariana", ln: "Gonçalves", pos: "OH" },
+    { n: 8, fn: "Beatriz", ln: "Lopes", pos: "MB" },
+    { n: 9, fn: "Carolina", ln: "Martins", pos: "MB" },
+    { n: 10, fn: "Ana", ln: "Nunes", pos: "OPP" },
+    { n: 11, fn: "Joana", ln: "Oliveira", pos: "DS" },
+    { n: 12, fn: "Teresa", ln: "Pereira", pos: "OH" },
+    { n: 14, fn: "Margarida", ln: "Ribeiro", pos: "S" },
+    { n: 15, fn: "Luísa", ln: "Santos", pos: "MB" },
+    { n: 17, fn: "Filipa", ln: "Vaz", pos: "OPP" },
+  ];
+  for (const p of seed) {
+    await createPlayer({
+      teamId: team.id,
+      firstName: p.fn,
+      lastName: p.ln,
+      number: p.n,
+      position: p.pos,
+      active: true,
+    });
+  }
+  return team;
+}
+
 // ── Players ──────────────────────────────────────────────────────────────
 export async function listPlayers(teamId: string) {
   return db.select().from(players).where(eq(players.teamId, teamId));
@@ -72,6 +114,24 @@ export async function createPlayer(data: InsertPlayer) {
   return db.select().from(players).where(eq(players.id, id)).get();
 }
 
+export async function updatePlayer(
+  teamId: string,
+  id: string,
+  data: Partial<InsertPlayer>,
+) {
+  await db
+    .update(players)
+    .set(data)
+    .where(and(eq(players.teamId, teamId), eq(players.id, id)));
+  return getPlayer(teamId, id);
+}
+
+export async function deletePlayer(teamId: string, id: string) {
+  await db
+    .delete(players)
+    .where(and(eq(players.teamId, teamId), eq(players.id, id)));
+}
+
 // ── Matches ──────────────────────────────────────────────────────────────
 export async function listMatches(teamId: string) {
   return db
@@ -81,10 +141,36 @@ export async function listMatches(teamId: string) {
     .orderBy(desc(matches.date));
 }
 
+export async function getMatch(teamId: string, id: string) {
+  return db
+    .select()
+    .from(matches)
+    .where(and(eq(matches.teamId, teamId), eq(matches.id, id)))
+    .get();
+}
+
 export async function createMatch(data: InsertMatch) {
   const id = newId();
   await db.insert(matches).values({ ...data, id });
   return db.select().from(matches).where(eq(matches.id, id)).get();
+}
+
+export async function updateMatch(
+  teamId: string,
+  id: string,
+  data: Partial<InsertMatch>,
+) {
+  await db
+    .update(matches)
+    .set(data)
+    .where(and(eq(matches.teamId, teamId), eq(matches.id, id)));
+  return getMatch(teamId, id);
+}
+
+export async function deleteMatch(teamId: string, id: string) {
+  await db
+    .delete(matches)
+    .where(and(eq(matches.teamId, teamId), eq(matches.id, id)));
 }
 
 // ── Actions (Live Scout) ─────────────────────────────────────────────────
