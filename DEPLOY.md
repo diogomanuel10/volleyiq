@@ -1,138 +1,135 @@
 # Deploying VolleyIQ
 
-Split deploy: **Vercel** hosts the built Vite client, **Railway** (or Fly/Render)
-hosts the Express API with SQLite on a persistent volume. Vercel rewrites
-`/api/*` to the Railway URL so the client keeps calling same-origin.
+The simplest path: **one Railway service** hosts everything (Express + SQLite
++ the built Vite client). If you later want the client on a CDN, there's a
+split-deploy recipe further down.
 
 ---
 
-## 1. Deploy the API to Railway
+## Option A — Single host on Railway (recommended)
 
-1. Create a new project on [railway.app](https://railway.app) → **Deploy from
+### 1. Create the service
+
+1. [railway.app](https://railway.app) → **New Project** → **Deploy from
    GitHub** → pick this repo, branch `claude/build-vol-platform-clone-yHkf5`
-   (or whichever you merge to `main`).
+   (or whichever branch you merge to `main`).
+2. In the service **Settings**:
+   - Build command: `npm install && npm run build`
+   - Start command: `npm start`
+   - (Railway's Nixpacks auto-detects Node 20 from `engines`.)
 
-2. **Build / start commands** — Railway auto-detects Node but set them
-   explicitly in the service settings to be safe:
-   - Build: `npm install && npm run build`
-   - Start: `npm start`
+### 2. Persistent volume for SQLite
 
-3. **Persistent volume** (for SQLite). In the Railway service → **Volumes**
-   → New Volume → mount at `/data`. Then set:
-   ```
-   DATABASE_URL=/data/volleyiq.db
-   ```
-   Without this, your DB is wiped on every redeploy.
+Railway's container filesystem is wiped on every redeploy. Mount a volume.
 
-4. **Environment variables** — minimum to boot:
-   ```
-   NODE_ENV=production
-   PORT=3000                 # Railway injects this; Express already reads it
-   DATABASE_URL=/data/volleyiq.db
-   DEV_AUTH_BYPASS=true      # TEMPORARY — see step 4 below
-   ```
-   Optional (layer on once the app boots):
-   ```
-   ANTHROPIC_API_KEY=sk-ant-...          # unlocks real AI (else mock mode)
-   FIRESTORE_MIRROR=true                 # enables the Second Screen mirror
-   FIREBASE_SERVICE_ACCOUNT_JSON={...}   # stringified service account JSON
-   ```
+1. Service → **Volumes** → **New Volume** → mount path `/data`.
+2. Set env var `DATABASE_URL=/data/volleyiq.db`.
 
-5. Deploy. Railway gives you a URL like
-   `https://volleyiq-production-xxxx.up.railway.app`. Test it:
-   ```
-   curl https://<your-url>/api/health
-   # → {"ok":true,"version":"0.1.0"}
-   ```
+Without this, every deploy starts with an empty database.
+
+### 3. Environment variables
+
+Minimum to boot (stays in dev-bypass mode, good for first smoke test):
+
+```
+NODE_ENV=production
+DATABASE_URL=/data/volleyiq.db
+DEV_AUTH_BYPASS=true
+```
+
+Layer on once it's alive:
+
+```
+ANTHROPIC_API_KEY=sk-ant-...            # real AI instead of mocks
+FIRESTORE_MIRROR=true                   # enables Second Screen realtime
+FIREBASE_SERVICE_ACCOUNT_JSON={...}     # paste the whole service account JSON
+```
+
+Client-side Firebase vars ALSO live on the Railway service (they're read at
+build time by Vite):
+
+```
+VITE_USE_DEV_AUTH=true                  # matches DEV_AUTH_BYPASS for dev
+# When you swap to real Firebase:
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=volleyiq-xxx.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=volleyiq-xxx
+VITE_FIREBASE_APP_ID=1:...:web:...
+```
+
+### 4. Deploy and verify
+
+Railway gives you a URL like `https://volleyiq-production-xxxx.up.railway.app`.
+
+```bash
+curl https://<url>/api/health
+# → {"ok":true,"version":"0.1.0"}
+```
+
+Open the URL in a browser — you should see the dashboard (dev-bypass auto
+creates a seed team on first load).
+
+### 5. Custom domain
+
+Service → **Settings → Domains** → **Add custom domain**. Railway shows the
+CNAME to add at your DNS provider. HTTPS is provisioned automatically.
+
+### 6. Turn off dev-bypass before going public
+
+**Do not leave `DEV_AUTH_BYPASS=true` on a production URL** — anyone who
+finds the link has full admin.
+
+1. Firebase console → enable Email/Password + Google sign-in.
+2. Project Settings → Service accounts → generate a new private key.
+3. On Railway:
+   - Remove `DEV_AUTH_BYPASS` and `VITE_USE_DEV_AUTH`.
+   - Add `FIREBASE_SERVICE_ACCOUNT_JSON` (paste the whole JSON).
+   - Add `VITE_FIREBASE_API_KEY` / `_AUTH_DOMAIN` / `_PROJECT_ID` / `_APP_ID`.
+4. Redeploy. Open in incognito — you should land on the login screen.
 
 ---
 
-## 2. Point Vercel at Railway
+## Option B — Split deploy: Vercel (client) + Railway (API)
 
-1. Open `vercel.json` in the repo. Replace the placeholder with your Railway
-   URL (no trailing slash):
+Use this if you want preview deploys per PR or CDN-backed static hosting.
+
+1. Deploy the API to Railway using **Option A steps 1–4**, but Railway only
+   serves `/api/*` in this mode (the Express static fallback still returns
+   `index.html` to non-API requests — harmless, but Vercel won't hit it).
+2. Edit `vercel.json` at the repo root — replace the placeholder Railway URL:
    ```json
-   "destination": "https://volleyiq-production-xxxx.up.railway.app/api/:path*"
+   "destination": "https://<your-railway>.up.railway.app/api/:path*"
    ```
    Commit and push.
+3. [vercel.com](https://vercel.com) → **Import Project** → pick this repo.
+   Vercel reads `vercel.json` and auto-configures Vite + output dir
+   `dist/client`.
+4. Vercel env vars: set the `VITE_*` vars from Option A step 3 (client only).
+5. Vercel → Settings → Domains → add your custom domain.
 
-2. On [vercel.com](https://vercel.com) → **Import Project** → pick this repo.
-   Vercel reads `vercel.json` and auto-configures:
-   - Framework: Vite
-   - Build: `vite build`
-   - Output: `dist/client`
-
-3. **Environment variables** (Vercel side, all prefixed `VITE_` so they reach
-   the client bundle at build time):
-   ```
-   VITE_USE_DEV_AUTH=true                  # TEMPORARY — see step 4
-   # When you switch to real Firebase:
-   VITE_FIREBASE_API_KEY=...
-   VITE_FIREBASE_AUTH_DOMAIN=volleyiq-xxx.firebaseapp.com
-   VITE_FIREBASE_PROJECT_ID=volleyiq-xxx
-   VITE_FIREBASE_APP_ID=1:...:web:...
-   ```
-
-4. Deploy. Vercel gives you `volleyiq.vercel.app`. Load it, check the
-   dashboard renders, check the Network tab — `/api/teams` should return
-   200 from the Railway URL via the rewrite.
+Tradeoff vs. Option A: two dashboards to manage, two deploys per change that
+touches both sides. Pro: PR previews, CDN, zero frontend cold-starts.
 
 ---
 
-## 3. Custom domain
+## Optional — Firestore mirror
 
-1. Vercel → Project → **Settings → Domains** → Add `yourdomain.com`.
-2. Vercel shows the DNS records to add at your registrar (usually a CNAME
-   to `cname.vercel-dns.com` for subdomains, or A/ALIAS for apex).
-3. Cert is auto-provisioned via Let's Encrypt — usually ready in under a
-   minute.
+The Second Screen view (`/#/second-screen/:matchId`) subscribes to Firestore
+live when the server-side mirror is on, otherwise falls back to 2s polling.
 
----
-
-## 4. Flip on real Firebase Auth
-
-Until this step, anyone with the URL has full admin access. Do NOT leave
-`DEV_AUTH_BYPASS=true` on a public production deploy.
-
-On your Firebase project:
-
-1. Enable **Email/Password** and **Google** sign-in providers.
-2. In Project Settings → **Your apps**: add a web app if you don't have
-   one, copy the config — these are the `VITE_FIREBASE_*` values above.
-3. In Project Settings → **Service accounts** → Generate new private key.
-   Download the JSON file.
-
-Then:
-
-- **Vercel env vars**: remove `VITE_USE_DEV_AUTH`, set the four
-  `VITE_FIREBASE_*` vars from step 2. Redeploy.
-- **Railway env vars**: remove `DEV_AUTH_BYPASS`, add
-  `FIREBASE_SERVICE_ACCOUNT_JSON` with the *entire* JSON from step 3
-  stringified (paste it into the Railway env editor — it accepts
-  multi-line values). Redeploy.
-
-Test: open the site in an incognito window. You should land on the login
-screen, not the dashboard.
-
----
-
-## 5. Optional — enable Firestore mirror
-
-The Second Screen route (`/#/second-screen/:matchId`) subscribes to Firestore
-live when the mirror is on, otherwise falls back to 2s polling. To enable:
-
-1. In the Firebase console enable Firestore in Native mode (eu-west3 for
-   low latency in PT).
-2. On Railway: add `FIRESTORE_MIRROR=true`. Redeploy.
-3. Add Firestore security rules so only authenticated members of a team can
-   read the relevant match docs. A starting point:
+1. Firebase console → enable Firestore in Native mode (eu-west3 for low
+   latency from Portugal).
+2. Railway: set `FIRESTORE_MIRROR=true` and ensure
+   `FIREBASE_SERVICE_ACCOUNT_JSON` is set. Redeploy.
+3. Firestore security rules starter (only admin SDK writes, clients
+   read-only):
    ```
    rules_version = '2';
    service cloud.firestore {
      match /databases/{db}/documents {
        match /matches/{matchId}/actions/{doc} {
          allow read: if request.auth != null;
-         allow write: if false;  // only the server (admin SDK) writes
+         allow write: if false;
        }
      }
    }
@@ -140,20 +137,28 @@ live when the mirror is on, otherwise falls back to 2s polling. To enable:
 
 ---
 
-## 6. Optional — unlock real AI
-
-Set `ANTHROPIC_API_KEY` on Railway. Without it, pattern detection and
-training recommendations run from deterministic mocks (good for dev, fine
-for a demo, not great for real matches).
-
----
-
 ## Checklist before going public
 
-- [ ] `DEV_AUTH_BYPASS` removed from Railway env
-- [ ] `VITE_USE_DEV_AUTH` removed from Vercel env
+- [ ] `DEV_AUTH_BYPASS` removed from Railway
+- [ ] `VITE_USE_DEV_AUTH` removed from Railway/Vercel
 - [ ] Firebase Auth credentials set on both sides
-- [ ] SQLite backed by a Railway volume (not the container filesystem)
+- [ ] SQLite backed by a Railway volume (not container FS)
 - [ ] `ANTHROPIC_API_KEY` set if you want real AI output
 - [ ] Custom domain DNS propagated, HTTPS green padlock
-- [ ] Test login → dashboard → create match → live scout flow
+- [ ] Smoke test: login → dashboard → create match → live scout
+
+## Troubleshooting
+
+- **`ERR_MODULE_NOT_FOUND` at startup** — you're on an older revision where
+  `npm start` ran `node dist/server/index.js`. Pull the latest branch: the
+  start script now uses `tsx` which resolves `@shared/*` and ESM extensions
+  correctly at runtime.
+- **Dashboard renders but `/api/*` returns HTML** — your Vercel rewrite in
+  `vercel.json` is pointing at the placeholder URL. Replace it with the
+  Railway URL and redeploy Vercel.
+- **`better-sqlite3` native build fails on Railway** — usually means Node 18
+  is being picked. `engines.node` in `package.json` requests 20+; make sure
+  Nixpacks isn't overriden. You can force it with a `.nvmrc` file at the
+  repo root containing `20`.
+- **DB state disappears between deploys** — you didn't attach a volume at
+  `/data` or `DATABASE_URL` isn't pointing at the volume.
