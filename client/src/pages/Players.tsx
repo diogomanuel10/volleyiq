@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Trash2, UserCog } from "lucide-react";
+import { Plus, Trash2, Upload, UserCog } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTeam } from "@/hooks/useTeam";
 import { api } from "@/lib/api";
@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { POSITIONS, type Position } from "@shared/types";
 import type { Player } from "@shared/schema";
+import { PlayerImportDialog } from "@/components/PlayerImportDialog";
 
 const POSITION_LABEL: Record<Position, string> = {
   OH: "Ponta",
@@ -40,6 +41,7 @@ export default function Players() {
   const [positionFilter, setPositionFilter] = useState<"all" | Position>("all");
   const [showInactive, setShowInactive] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editing, setEditing] = useState<Player | null>(null);
 
   const playersQuery = useQuery({
@@ -79,29 +81,44 @@ export default function Players() {
             Roster de {team.name} — {filtered.length} jogadora(s)
           </p>
         </div>
-        <Dialog
-          open={dialogOpen}
-          onOpenChange={(v) => {
-            setDialogOpen(v);
-            if (!v) setEditing(null);
-          }}
-        >
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4" /> Nova jogadora
-            </Button>
-          </DialogTrigger>
-          <PlayerDialog
-            teamId={team.id}
-            editing={editing}
-            onSaved={() => {
-              setDialogOpen(false);
-              setEditing(null);
-              qc.invalidateQueries({ queryKey: ["players", team.id] });
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setImportOpen(true)}
+          >
+            <Upload className="h-4 w-4" /> Importar
+          </Button>
+          <Dialog
+            open={dialogOpen}
+            onOpenChange={(v) => {
+              setDialogOpen(v);
+              if (!v) setEditing(null);
             }}
-          />
-        </Dialog>
+          >
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4" /> Nova jogadora
+              </Button>
+            </DialogTrigger>
+            <PlayerDialog
+              teamId={team.id}
+              editing={editing}
+              onSaved={() => {
+                setDialogOpen(false);
+                setEditing(null);
+                qc.invalidateQueries({ queryKey: ["players", team.id] });
+              }}
+            />
+          </Dialog>
+        </div>
       </header>
+
+      <PlayerImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        teamId={team.id}
+        existingNumbers={(playersQuery.data ?? []).map((p) => p.number)}
+      />
 
       <div className="flex flex-wrap gap-2 text-sm items-center">
         <button

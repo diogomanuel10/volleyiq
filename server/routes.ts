@@ -88,6 +88,29 @@ router.post("/players", async (req, res) => {
   res.status(201).json(player);
 });
 
+const bulkPlayersSchema = z.object({
+  teamId: z.string().min(1),
+  players: z.array(insertPlayerSchema.omit({ teamId: true })).min(1).max(200),
+});
+
+router.post("/players/bulk", async (req, res) => {
+  const parsed = bulkPlayersSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const ok = await storage.userBelongsToTeam(req.user!.uid, parsed.data.teamId);
+  if (!ok) {
+    res.status(403).json({ error: "forbidden" });
+    return;
+  }
+  const created = await storage.bulkCreatePlayers(
+    parsed.data.teamId,
+    parsed.data.players,
+  );
+  res.status(201).json({ inserted: created.length, players: created });
+});
+
 router.get(
   "/players/:id",
   requireTeamAccess,

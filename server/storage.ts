@@ -1,4 +1,4 @@
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { db } from "./db";
 import {
@@ -88,6 +88,25 @@ export async function createPlayer(data: InsertPlayer) {
   const id = newId();
   await db.insert(players).values({ ...data, id });
   return db.select().from(players).where(eq(players.id, id)).get();
+}
+
+/**
+ * Insere vários jogadores para uma equipa numa única transacção. Devolve os
+ * registos recém-criados. Não faz deduplicação por número — deixa o caller
+ * (UI) avisar o utilizador sobre duplicados antes de confirmar o import.
+ */
+export async function bulkCreatePlayers(
+  teamId: string,
+  payload: Array<Omit<InsertPlayer, "teamId">>,
+) {
+  if (payload.length === 0) return [];
+  const rows = payload.map((p) => ({ ...p, teamId, id: newId() }));
+  await db.insert(players).values(rows);
+  const ids = rows.map((r) => r.id);
+  return db
+    .select()
+    .from(players)
+    .where(and(eq(players.teamId, teamId), inArray(players.id, ids)));
 }
 
 export async function updatePlayer(
