@@ -1,8 +1,22 @@
-import express from "express";
+import express, {
+  type Request,
+  type Response,
+  type NextFunction,
+} from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
 import { router } from "./routes";
+
+// Evita que uma promise rejeitada num handler derrube o processo. Em Express 4
+// os erros async não são auto-propagados — sem este guarda, uma query SQL que
+// falhe numa rota termina o processo e Railway entra em restart-loop.
+process.on("unhandledRejection", (reason) => {
+  console.error("[unhandledRejection]", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[uncaughtException]", err);
+});
 
 const app = express();
 app.use(express.json({ limit: "2mb" }));
@@ -55,6 +69,17 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api", router);
+
+// Error handler de último recurso para erros síncronos ou chamadas `next(err)`.
+// Combinado com o unhandledRejection handler no topo do ficheiro, garante que
+// o processo não morre quando um handler async falha.
+app.use(
+  (err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+    console.error("[api:error]", err);
+    if (res.headersSent) return;
+    res.status(500).json({ error: "Internal server error" });
+  },
+);
 
 // Em produção servimos o build do Vite a partir do próprio processo. Assim
 // um único deploy (ex: Railway) serve cliente e API. Em dev o Vite corre
