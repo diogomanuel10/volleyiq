@@ -7,6 +7,41 @@ import { router } from "./routes";
 const app = express();
 app.use(express.json({ limit: "2mb" }));
 
+// CORS para o split-deploy (ex: Vercel -> Railway). Lê `ALLOWED_ORIGINS` como
+// lista separada por vírgulas; `*` libera tudo (útil só para smoke tests).
+const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.length) {
+    const allow =
+      allowedOrigins.includes("*") || allowedOrigins.includes(origin);
+    if (allow) {
+      res.setHeader(
+        "Access-Control-Allow-Origin",
+        allowedOrigins.includes("*") ? "*" : origin,
+      );
+      res.setHeader("Vary", "Origin");
+      res.setHeader(
+        "Access-Control-Allow-Methods",
+        "GET,POST,PATCH,DELETE,OPTIONS",
+      );
+      res.setHeader(
+        "Access-Control-Allow-Headers",
+        "Authorization,Content-Type",
+      );
+    }
+  }
+  if (req.method === "OPTIONS") {
+    res.status(204).end();
+    return;
+  }
+  next();
+});
+
 // Log simples de API (ignora rotas estáticas do Vite, se alguma dia servirmos).
 app.use((req, _res, next) => {
   if (req.path.startsWith("/api")) {

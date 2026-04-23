@@ -96,16 +96,53 @@ Use this if you want preview deploys per PR or CDN-backed static hosting.
 1. Deploy the API to Railway using **Option A steps 1–4**, but Railway only
    serves `/api/*` in this mode (the Express static fallback still returns
    `index.html` to non-API requests — harmless, but Vercel won't hit it).
-2. Edit `vercel.json` at the repo root — replace the placeholder Railway URL:
+2. On **Railway**, set `ALLOWED_ORIGINS` to your Vercel URL(s), comma-
+   separated. Include both the production URL and preview URLs if you rely
+   on them:
+   ```
+   ALLOWED_ORIGINS=https://your-app.vercel.app,https://your-custom-domain.com
+   ```
+3. On **Vercel**, pick one of these two wiring options:
+
+   **B.1 — Direct (recommended).** Set `VITE_API_URL` to the Railway URL:
+   ```
+   VITE_API_URL=https://<your-railway>.up.railway.app
+   ```
+   The client will send requests straight to Railway with the Firebase
+   Bearer token attached. No `vercel.json` rewrite needed — you can delete
+   the `rewrites` block or leave it empty. CORS is handled by
+   `ALLOWED_ORIGINS` on the backend.
+
+   **B.2 — Vercel rewrite.** Leave `VITE_API_URL` empty and edit
+   `vercel.json`, replacing the placeholder Railway URL:
    ```json
    "destination": "https://<your-railway>.up.railway.app/api/:path*"
    ```
-   Commit and push.
-3. [vercel.com](https://vercel.com) → **Import Project** → pick this repo.
+   Commit and push. The request stays same-origin from the browser's point
+   of view; Vercel's edge forwards it server-side (Authorization header
+   included). `ALLOWED_ORIGINS` isn't required for this path since the
+   browser never talks to Railway directly.
+
+4. [vercel.com](https://vercel.com) → **Import Project** → pick this repo.
    Vercel reads `vercel.json` and auto-configures Vite + output dir
    `dist/client`.
-4. Vercel env vars: set the `VITE_*` vars from Option A step 3 (client only).
-5. Vercel → Settings → Domains → add your custom domain.
+5. **Vercel env vars** (Settings → Environment Variables). All `VITE_*`
+   vars are inlined at build time, so add them under *Production* (and
+   *Preview*, if you want previews to work):
+   ```
+   VITE_API_URL=https://<your-railway>.up.railway.app   # only for B.1
+   VITE_FIREBASE_API_KEY=...
+   VITE_FIREBASE_AUTH_DOMAIN=<project>.firebaseapp.com
+   VITE_FIREBASE_PROJECT_ID=<project>
+   VITE_FIREBASE_APP_ID=1:...:web:...
+   ```
+   If you're using real Firebase auth, **do not** set `VITE_USE_DEV_AUTH`.
+   If Railway has `DEV_AUTH_BYPASS=true`, Vercel must also have
+   `VITE_USE_DEV_AUTH=true` — mismatched sides produce 401s.
+6. Vercel → Settings → Domains → add your custom domain.
+7. In the Firebase console → *Authentication → Settings → Authorized
+   domains*, add your Vercel URL and custom domain. Without this, Google
+   popup login fails silently and `currentUser` stays null.
 
 Tradeoff vs. Option A: two dashboards to manage, two deploys per change that
 touches both sides. Pro: PR previews, CDN, zero frontend cold-starts.
@@ -156,6 +193,18 @@ live when the server-side mirror is on, otherwise falls back to 2s polling.
 - **Dashboard renders but `/api/*` returns HTML** — your Vercel rewrite in
   `vercel.json` is pointing at the placeholder URL. Replace it with the
   Railway URL and redeploy Vercel.
+- **`401 Missing bearer token` on `/api/teams`** (split deploy) — the
+  request reached the API without an `Authorization` header. Common causes:
+  (1) `VITE_FIREBASE_*` env vars are missing on Vercel, so the web SDK
+  can't sign the user in and `getIdToken()` returns null; (2) your Vercel
+  URL isn't in Firebase → Authentication → Authorized domains, so the
+  login popup fails silently; (3) Railway has `DEV_AUTH_BYPASS=true` but
+  Vercel doesn't have `VITE_USE_DEV_AUTH=true` (or vice versa). The client
+  now throws a clear *"Not signed in"* error instead of firing a headerless
+  request — check the browser devtools console for that.
+- **`401 Missing bearer token` when calling Railway directly from the
+  browser** — you need `ALLOWED_ORIGINS` set on Railway to include your
+  Vercel origin, and `VITE_API_URL` set on Vercel to the Railway URL.
 - **`better-sqlite3` native build fails on Railway** — usually means Node 18
   is being picked. `engines.node` in `package.json` requests 20+; make sure
   Nixpacks isn't overriden. You can force it with a `.nvmrc` file at the
