@@ -6,23 +6,16 @@ import type { Team } from "@shared/schema";
 const STORAGE_KEY = "volleyiq:teamId";
 
 /**
- * Gere o "team atual" do utilizador. Persiste em localStorage e, caso o
- * utilizador ainda não tenha equipa nenhuma (primeiro login em dev), chama
- * `/teams/bootstrap` para criar uma com roster demo.
+ * Gere o "team atual" do utilizador. Persiste a selecção em localStorage.
+ * Se o utilizador ainda não tem equipa nenhuma, devolve `team: null` —
+ * cabe ao caller encaminhar para o ecrã de onboarding.
  */
 export function useTeam() {
   const qc = useQueryClient();
 
   const teamsQuery = useQuery({
     queryKey: ["teams"],
-    queryFn: async () => {
-      let list = await api.get<Team[]>("/api/teams");
-      if (list.length === 0) {
-        await api.post<Team>("/api/teams/bootstrap", {});
-        list = await api.get<Team[]>("/api/teams");
-      }
-      return list;
-    },
+    queryFn: () => api.get<Team[]>("/api/teams"),
   });
 
   const stored =
@@ -31,10 +24,8 @@ export function useTeam() {
       : null;
 
   const teams = teamsQuery.data ?? [];
-  const current =
-    teams.find((t) => t.id === stored) ?? teams[0] ?? null;
+  const current = teams.find((t) => t.id === stored) ?? teams[0] ?? null;
 
-  // Sincroniza localStorage quando a selecção muda (ex: equipa apagada).
   useEffect(() => {
     if (current && current.id !== stored) {
       window.localStorage.setItem(STORAGE_KEY, current.id);
@@ -50,6 +41,7 @@ export function useTeam() {
     teams,
     team: current,
     isLoading: teamsQuery.isLoading,
+    hasTeams: teams.length > 0,
     setTeam,
   };
 }

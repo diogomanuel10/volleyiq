@@ -4,10 +4,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { Toaster } from "sonner";
 import App from "./App";
-import { useTheme, watchSystemTheme } from "@/lib/theme";
+import { useTheme } from "@/lib/theme";
 import "./index.css";
-
-watchSystemTheme();
 
 function ThemedToaster() {
   const { theme } = useTheme();

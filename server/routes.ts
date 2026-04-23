@@ -34,15 +34,6 @@ router.get("/teams", async (req, res) => {
   res.json(list);
 });
 
-/**
- * Em dev, se o utilizador não tiver equipa nenhuma, cria uma com roster seed.
- * Evita o ecrã vazio sem obrigar a construir já o wizard de onboarding.
- */
-router.post("/teams/bootstrap", async (req, res) => {
-  const team = await storage.ensureBootstrapTeam(req.user!.uid);
-  res.json(team);
-});
-
 router.post("/teams", async (req, res) => {
   const parsed = insertTeamSchema.safeParse({
     ...req.body,

@@ -21,6 +21,13 @@ import {
 export const teams = sqliteTable("teams", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
+  club: text("club").notNull(),
+  // Escalão em texto livre (ex: "Seniores Femininas", "Sub-18 M", etc.).
+  category: text("category").notNull(),
+  season: text("season"),
+  division: text("division"),
+  // Hex string incluindo `#` (ex: `#0ea5e9`).
+  primaryColor: text("primary_color"),
   plan: text("plan", { enum: PLANS }).notNull().default("basic"),
   ownerUid: text("owner_uid").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" })

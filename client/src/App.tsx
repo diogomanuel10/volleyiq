@@ -1,6 +1,7 @@
 import { Route, Switch, Router as WouterRouter } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 import { useAuth } from "@/hooks/useAuth";
+import { useTeam } from "@/hooks/useTeam";
 import { AppShell } from "@/components/layout/AppShell";
 import Dashboard from "@/pages/Dashboard";
 import LiveScout from "@/pages/LiveScout";
@@ -14,22 +15,33 @@ import PostMatch from "@/pages/PostMatch";
 import Pricing from "@/pages/Pricing";
 import SecondScreen from "@/pages/SecondScreen";
 import Login from "@/pages/Login";
+import Onboarding from "@/pages/Onboarding";
 
 export default function App() {
-  const { isAuthed, isLoading } = useAuth();
+  const { isAuthed, isLoading: authLoading } = useAuth();
 
-  if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center text-muted-foreground">
-        A carregar…
-      </div>
-    );
-  }
+  if (authLoading) return <Loading />;
 
   if (!isAuthed) {
     return (
       <WouterRouter hook={useHashLocation}>
         <Login />
+      </WouterRouter>
+    );
+  }
+
+  return <AuthedApp />;
+}
+
+function AuthedApp() {
+  const { hasTeams, isLoading: teamsLoading } = useTeam();
+
+  if (teamsLoading) return <Loading />;
+
+  if (!hasTeams) {
+    return (
+      <WouterRouter hook={useHashLocation}>
+        <Onboarding />
       </WouterRouter>
     );
   }
@@ -55,5 +67,13 @@ export default function App() {
         </Switch>
       </AppShell>
     </WouterRouter>
+  );
+}
+
+function Loading() {
+  return (
+    <div className="flex h-full items-center justify-center text-muted-foreground">
+      A carregar…
+    </div>
   );
 }

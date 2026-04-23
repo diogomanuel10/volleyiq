@@ -24,6 +24,11 @@ async function seed() {
   await db.insert(teams).values({
     id: DEMO_TEAM_ID,
     name: "VolleyIQ FC",
+    club: "CD VolleyIQ",
+    category: "Seniores Femininas",
+    season: "2025/26",
+    division: "Divisão A1",
+    primaryColor: "#0ea5e9",
     plan: "pro",
     ownerUid: DEMO_UID,
   });

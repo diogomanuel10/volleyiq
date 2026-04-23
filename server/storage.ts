@@ -71,48 +71,6 @@ export async function updateTeamPlan(
   return db.select().from(teams).where(eq(teams.id, teamId)).get();
 }
 
-/**
- * Garante que um utilizador tem pelo menos uma equipa. Em modo dev o backend
- * chama isto no arranque para que o frontend tenha algo com que trabalhar sem
- * um ecrã de onboarding.
- */
-export async function ensureBootstrapTeam(uid: string) {
-  const existing = await listTeamsForUser(uid);
-  if (existing.length) return existing[0];
-
-  const team = await createTeam(uid, {
-    name: "VolleyIQ FC",
-    plan: "pro",
-    ownerUid: uid,
-  });
-
-  const seed: Array<{ n: number; fn: string; ln: string; pos: any }> = [
-    { n: 1, fn: "Rita", ln: "Almeida", pos: "L" },
-    { n: 3, fn: "Sofia", ln: "Costa", pos: "S" },
-    { n: 5, fn: "Inês", ln: "Ferreira", pos: "OH" },
-    { n: 6, fn: "Mariana", ln: "Gonçalves", pos: "OH" },
-    { n: 8, fn: "Beatriz", ln: "Lopes", pos: "MB" },
-    { n: 9, fn: "Carolina", ln: "Martins", pos: "MB" },
-    { n: 10, fn: "Ana", ln: "Nunes", pos: "OPP" },
-    { n: 11, fn: "Joana", ln: "Oliveira", pos: "DS" },
-    { n: 12, fn: "Teresa", ln: "Pereira", pos: "OH" },
-    { n: 14, fn: "Margarida", ln: "Ribeiro", pos: "S" },
-    { n: 15, fn: "Luísa", ln: "Santos", pos: "MB" },
-    { n: 17, fn: "Filipa", ln: "Vaz", pos: "OPP" },
-  ];
-  for (const p of seed) {
-    await createPlayer({
-      teamId: team.id,
-      firstName: p.fn,
-      lastName: p.ln,
-      number: p.n,
-      position: p.pos,
-      active: true,
-    });
-  }
-  return team;
-}
-
 // ── Players ──────────────────────────────────────────────────────────────
 export async function listPlayers(teamId: string) {
   return db.select().from(players).where(eq(players.teamId, teamId));
