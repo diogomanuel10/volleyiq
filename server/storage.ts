@@ -50,16 +50,16 @@ export async function createTeam(uid: string, data: InsertTeam) {
     uid,
     role: "owner",
   });
-  const row = await db.select().from(teams).where(eq(teams.id, id)).get();
+  const [row] = await db.select().from(teams).where(eq(teams.id, id));
   return row!;
 }
 
 export async function userBelongsToTeam(uid: string, teamId: string) {
-  const row = await db
+  const [row] = await db
     .select()
     .from(memberships)
     .where(and(eq(memberships.uid, uid), eq(memberships.teamId, teamId)))
-    .get();
+    .limit(1);
   return !!row;
 }
 
@@ -68,7 +68,8 @@ export async function updateTeamPlan(
   plan: "basic" | "pro" | "club",
 ) {
   await db.update(teams).set({ plan }).where(eq(teams.id, teamId));
-  return db.select().from(teams).where(eq(teams.id, teamId)).get();
+  const [row] = await db.select().from(teams).where(eq(teams.id, teamId));
+  return row;
 }
 
 // ── Players ──────────────────────────────────────────────────────────────
@@ -77,17 +78,18 @@ export async function listPlayers(teamId: string) {
 }
 
 export async function getPlayer(teamId: string, id: string) {
-  return db
+  const [row] = await db
     .select()
     .from(players)
-    .where(and(eq(players.teamId, teamId), eq(players.id, id)))
-    .get();
+    .where(and(eq(players.teamId, teamId), eq(players.id, id)));
+  return row;
 }
 
 export async function createPlayer(data: InsertPlayer) {
   const id = newId();
   await db.insert(players).values({ ...data, id });
-  return db.select().from(players).where(eq(players.id, id)).get();
+  const [row] = await db.select().from(players).where(eq(players.id, id));
+  return row;
 }
 
 /**
@@ -137,17 +139,18 @@ export async function listMatches(teamId: string) {
 }
 
 export async function getMatch(teamId: string, id: string) {
-  return db
+  const [row] = await db
     .select()
     .from(matches)
-    .where(and(eq(matches.teamId, teamId), eq(matches.id, id)))
-    .get();
+    .where(and(eq(matches.teamId, teamId), eq(matches.id, id)));
+  return row;
 }
 
 export async function createMatch(data: InsertMatch) {
   const id = newId();
   await db.insert(matches).values({ ...data, id });
-  return db.select().from(matches).where(eq(matches.id, id)).get();
+  const [row] = await db.select().from(matches).where(eq(matches.id, id));
+  return row;
 }
 
 export async function updateMatch(
@@ -180,13 +183,13 @@ export async function listActions(matchId: string) {
 export async function createAction(data: InsertAction) {
   const id = newId();
   await db.insert(actions).values({ ...data, id });
-  const row = await db.select().from(actions).where(eq(actions.id, id)).get();
+  const [row] = await db.select().from(actions).where(eq(actions.id, id));
   if (row) void mirrorAction(row);
   return row;
 }
 
 export async function deleteAction(id: string) {
-  const row = await db.select().from(actions).where(eq(actions.id, id)).get();
+  const [row] = await db.select().from(actions).where(eq(actions.id, id));
   await db.delete(actions).where(eq(actions.id, id));
   if (row) void mirrorDeleteAction(row.matchId, id);
 }
@@ -236,11 +239,10 @@ export async function listChecklist(matchId: string) {
 
 export async function toggleChecklistItem(id: string, done: boolean) {
   await db.update(checklistItems).set({ done }).where(eq(checklistItems.id, id));
-  const row = await db
+  const [row] = await db
     .select()
     .from(checklistItems)
-    .where(eq(checklistItems.id, id))
-    .get();
+    .where(eq(checklistItems.id, id));
   if (row) void mirrorChecklistItem(row);
 }
 

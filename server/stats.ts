@@ -338,11 +338,10 @@ export async function buildPostMatch(
   teamId: string,
   matchId: string,
 ): Promise<PostMatchSummary | null> {
-  const match = await db
+  const [match] = await db
     .select()
     .from(matches)
-    .where(and(eq(matches.teamId, teamId), eq(matches.id, matchId)))
-    .get();
+    .where(and(eq(matches.teamId, teamId), eq(matches.id, matchId)));
   if (!match) return null;
   const rows = await db
     .select()
@@ -471,11 +470,10 @@ export async function buildPlayerSummary(
   teamId: string,
   playerId: string,
 ): Promise<PlayerSummary | null> {
-  const player = await db
+  const [player] = await db
     .select()
     .from(players)
-    .where(and(eq(players.teamId, teamId), eq(players.id, playerId)))
-    .get();
+    .where(and(eq(players.teamId, teamId), eq(players.id, playerId)));
   if (!player) return null;
 
   // Acções recentes em todos os jogos da equipa (últimos 6).

@@ -1,8 +1,8 @@
 # Deploying VolleyIQ
 
-The simplest path: **one Railway service** hosts everything (Express + SQLite
-+ the built Vite client). If you later want the client on a CDN, there's a
-split-deploy recipe further down.
+The simplest path: **one Railway service** hosts the Express app plus the
+built Vite client, with a **Postgres** service alongside. If you later want
+the client on a CDN, there's a split-deploy recipe further down.
 
 ---
 
@@ -18,14 +18,28 @@ split-deploy recipe further down.
    - Start command: `npm start`
    - (Railway's Nixpacks auto-detects Node 20 from `engines`.)
 
-### 2. Persistent volume for SQLite
+### 2. Postgres database
 
-Railway's container filesystem is wiped on every redeploy. Mount a volume.
+VolleyIQ uses Postgres via `postgres-js` + Drizzle. Railway provisions one
+with a click and exposes `DATABASE_URL` automatically.
 
-1. Service → **Volumes** → **New Volume** → mount path `/data`.
-2. Set env var `DATABASE_URL=/data/volleyiq.db`.
+1. Project canvas → **+ Create** → **Database** → **PostgreSQL**.
+2. Click the new Postgres service → tab **Variables** → copy the
+   **DATABASE_URL** value (looks like `postgresql://postgres:PW@host:5432/railway`).
+3. Click your API service → **Variables** → add:
+   ```
+   DATABASE_URL = ${{ Postgres.DATABASE_URL }}
+   ```
+   (the `${{ ... }}` syntax creates a reference to the Postgres service —
+   Railway updates it automatically if the DB is rotated). You can also
+   paste the raw URL, either works.
+4. Redeploy. On first boot the server applies `drizzle/*.sql` migrations
+   and creates all tables. Idempotent on every subsequent boot.
 
-Without this, every deploy starts with an empty database.
+SSL is enabled by default (`require`) — Railway's internal Postgres hostname
+serves a self-signed cert, and the driver accepts it without full CA
+verification. Set `PGSSL=disable` only if you're pointing at an unencrypted
+local Postgres.
 
 ### 3. Environment variables
 
@@ -33,7 +47,7 @@ Minimum to boot (stays in dev-bypass mode, good for first smoke test):
 
 ```
 NODE_ENV=production
-DATABASE_URL=/data/volleyiq.db
+DATABASE_URL=${{ Postgres.DATABASE_URL }}
 DEV_AUTH_BYPASS=true
 ```
 
@@ -179,7 +193,7 @@ live when the server-side mirror is on, otherwise falls back to 2s polling.
 - [ ] `DEV_AUTH_BYPASS` removed from Railway
 - [ ] `VITE_USE_DEV_AUTH` removed from Railway/Vercel
 - [ ] Firebase Auth credentials set on both sides
-- [ ] SQLite backed by a Railway volume (not container FS)
+- [ ] Postgres service provisioned and `DATABASE_URL` pointing at it
 - [ ] `ANTHROPIC_API_KEY` set if you want real AI output
 - [ ] Custom domain DNS propagated, HTTPS green padlock
 - [ ] Smoke test: login → dashboard → create match → live scout
@@ -205,9 +219,14 @@ live when the server-side mirror is on, otherwise falls back to 2s polling.
 - **`401 Missing bearer token` when calling Railway directly from the
   browser** — you need `ALLOWED_ORIGINS` set on Railway to include your
   Vercel origin, and `VITE_API_URL` set on Vercel to the Railway URL.
-- **`better-sqlite3` native build fails on Railway** — usually means Node 18
-  is being picked. `engines.node` in `package.json` requests 20+; make sure
-  Nixpacks isn't overriden. You can force it with a `.nvmrc` file at the
-  repo root containing `20`.
-- **DB state disappears between deploys** — you didn't attach a volume at
-  `/data` or `DATABASE_URL` isn't pointing at the volume.
+- **`DATABASE_URL not set` on boot** — you didn't wire the Postgres service
+  into the API service's Variables. Go to Service → Variables → add
+  `DATABASE_URL = ${{ Postgres.DATABASE_URL }}`.
+- **`relation "teams" does not exist`** — the migrations never ran. Check
+  that `drizzle/` is committed (it is in `main`) and that your start
+  command runs `npm start`, not just `node`. The migrator runs inside
+  `server/db.ts` during module load.
+- **`SSL/TLS required` or cert errors** — the driver sends `ssl=require`
+  by default. Railway's internal hostname uses a self-signed cert, which
+  `postgres-js` accepts without full CA verification. If you're pointing
+  at a local Postgres without SSL, set `PGSSL=disable`.

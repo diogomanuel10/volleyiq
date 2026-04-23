@@ -1,34 +1,33 @@
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as schema from "@shared/schema";
 
-const url = process.env.DATABASE_URL ?? "./volleyiq.db";
-const sqlite = new Database(url);
-sqlite.pragma("journal_mode = WAL");
-sqlite.pragma("foreign_keys = ON");
+const url = process.env.DATABASE_URL;
+if (!url) {
+  throw new Error(
+    "DATABASE_URL not set. Point it at your Postgres instance (e.g. Railway " +
+      "injects DATABASE_URL automatically when you link the Postgres plugin " +
+      "to your service).",
+  );
+}
 
-export const db = drizzle(sqlite, { schema });
+// Railway Postgres exige TLS. `require` liga mas não valida o certificado —
+// suficiente para a ligação privada entre o serviço e a DB dentro da VPC do
+// Railway. Para deployments self-managed em que tens o CA, passa-se o cert.
+const client = postgres(url, {
+  ssl: process.env.PGSSL === "disable" ? false : "require",
+  max: 10,
+});
+
+export const db = drizzle(client, { schema });
 export type DB = typeof db;
 
-// Aplica as migrações SQL (drizzle/*.sql) no arranque. Em containers efémeros
-// (ex: Railway sem volume) o ficheiro SQLite está vazio a cada redeploy, pelo
-// que isto garante que as tabelas existem antes da primeira query. `migrate` é
-// idempotente — se a DB já tem as migrações aplicadas, não faz nada.
+// Corre as migrações SQL (drizzle/*.sql) no arranque. Idempotente — se a DB
+// já tem as migrações aplicadas, não faz nada. Crítico para primeiros
+// deploys em que a DB existe mas está vazia.
 const here = path.dirname(fileURLToPath(import.meta.url));
 const migrationsFolder = path.resolve(here, "../drizzle");
-migrate(db, { migrationsFolder });
-
-// Auto-ALTER para colunas novas sem exigir drizzle-kit em dev.
-function addColumnIfMissing(table: string, column: string, ddl: string) {
-  const info = sqlite.prepare(`PRAGMA table_info(${table})`).all() as Array<{
-    name: string;
-  }>;
-  if (!info.length) return; // tabela ainda não criada por drizzle-kit
-  if (info.some((c) => c.name === column)) return;
-  sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
-}
-addColumnIfMissing("matches", "video_url", "video_url text");
-addColumnIfMissing("actions", "video_time_sec", "video_time_sec integer");
+await migrate(db, { migrationsFolder });

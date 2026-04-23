@@ -1,5 +1,12 @@
-import { sql, type InferSelectModel } from "drizzle-orm";
-import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
+import { type InferSelectModel } from "drizzle-orm";
+import {
+  pgTable,
+  text,
+  integer,
+  boolean,
+  timestamp,
+  index,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import {
@@ -18,7 +25,7 @@ import {
  */
 
 // ── Users ↔ Teams (membership) ────────────────────────────────────────────
-export const teams = sqliteTable("teams", {
+export const teams = pgTable("teams", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   club: text("club").notNull(),
@@ -30,12 +37,10 @@ export const teams = sqliteTable("teams", {
   primaryColor: text("primary_color"),
   plan: text("plan", { enum: PLANS }).notNull().default("basic"),
   ownerUid: text("owner_uid").notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .notNull()
-    .default(sql`(unixepoch())`),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const memberships = sqliteTable(
+export const memberships = pgTable(
   "memberships",
   {
     id: text("id").primaryKey(),
@@ -54,7 +59,7 @@ export const memberships = sqliteTable(
 );
 
 // ── Players ──────────────────────────────────────────────────────────────
-export const players = sqliteTable(
+export const players = pgTable(
   "players",
   {
     id: text("id").primaryKey(),
@@ -68,16 +73,14 @@ export const players = sqliteTable(
     heightCm: integer("height_cm"),
     dominantHand: text("dominant_hand", { enum: ["left", "right"] }),
     birthDate: text("birth_date"),
-    active: integer("active", { mode: "boolean" }).notNull().default(true),
-    createdAt: integer("created_at", { mode: "timestamp" })
-      .notNull()
-      .default(sql`(unixepoch())`),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => ({ byTeam: index("players_team_idx").on(t.teamId) }),
 );
 
 // ── Matches ──────────────────────────────────────────────────────────────
-export const matches = sqliteTable(
+export const matches = pgTable(
   "matches",
   {
     id: text("id").primaryKey(),
@@ -85,7 +88,7 @@ export const matches = sqliteTable(
       .notNull()
       .references(() => teams.id, { onDelete: "cascade" }),
     opponent: text("opponent").notNull(),
-    date: integer("date", { mode: "timestamp" }).notNull(),
+    date: timestamp("date").notNull(),
     venue: text("venue", { enum: ["home", "away", "neutral"] })
       .notNull()
       .default("home"),
@@ -99,14 +102,12 @@ export const matches = sqliteTable(
       .default("scheduled"),
     notes: text("notes"),
     videoUrl: text("video_url"),
-    createdAt: integer("created_at", { mode: "timestamp" })
-      .notNull()
-      .default(sql`(unixepoch())`),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => ({ byTeam: index("matches_team_idx").on(t.teamId) }),
 );
 
-export const sets = sqliteTable(
+export const sets = pgTable(
   "sets",
   {
     id: text("id").primaryKey(),
@@ -116,14 +117,14 @@ export const sets = sqliteTable(
     number: integer("number").notNull(),
     homeScore: integer("home_score").notNull().default(0),
     awayScore: integer("away_score").notNull().default(0),
-    startedAt: integer("started_at", { mode: "timestamp" }),
-    finishedAt: integer("finished_at", { mode: "timestamp" }),
+    startedAt: timestamp("started_at"),
+    finishedAt: timestamp("finished_at"),
   },
   (t) => ({ byMatch: index("sets_match_idx").on(t.matchId) }),
 );
 
 // ── Lineups (p1..p6 por rotação inicial de cada set) ─────────────────────
-export const lineups = sqliteTable(
+export const lineups = pgTable(
   "lineups",
   {
     id: text("id").primaryKey(),
@@ -143,7 +144,7 @@ export const lineups = sqliteTable(
 );
 
 // ── Actions (grão fino — ~500 linhas / jogo) ─────────────────────────────
-export const actions = sqliteTable(
+export const actions = pgTable(
   "actions",
   {
     id: text("id").primaryKey(),
@@ -161,9 +162,7 @@ export const actions = sqliteTable(
     // Contexto opcional (jogador adversário em ataque, setter visível, etc.)
     opponentPlayer: integer("opponent_player"),
     videoTimeSec: integer("video_time_sec"),
-    timestamp: integer("timestamp", { mode: "timestamp" })
-      .notNull()
-      .default(sql`(unixepoch())`),
+    timestamp: timestamp("timestamp").notNull().defaultNow(),
   },
   (t) => ({
     byMatch: index("actions_match_idx").on(t.matchId),
@@ -173,7 +172,7 @@ export const actions = sqliteTable(
 );
 
 // ── Match day checklist ──────────────────────────────────────────────────
-export const checklistItems = sqliteTable(
+export const checklistItems = pgTable(
   "checklist_items",
   {
     id: text("id").primaryKey(),
@@ -182,14 +181,14 @@ export const checklistItems = sqliteTable(
       .references(() => matches.id, { onDelete: "cascade" }),
     category: text("category", { enum: CHECKLIST_CATEGORIES }).notNull(),
     label: text("label").notNull(),
-    done: integer("done", { mode: "boolean" }).notNull().default(false),
+    done: boolean("done").notNull().default(false),
     order: integer("order").notNull().default(0),
   },
   (t) => ({ byMatch: index("checklist_match_idx").on(t.matchId) }),
 );
 
 // ── Scouting reports (JSON de padrões gerado pela IA) ────────────────────
-export const scoutingReports = sqliteTable(
+export const scoutingReports = pgTable(
   "scouting_reports",
   {
     id: text("id").primaryKey(),
@@ -200,15 +199,13 @@ export const scoutingReports = sqliteTable(
     matchIds: text("match_ids").notNull(), // JSON string[]
     patternsJson: text("patterns_json").notNull(), // DetectedPattern[]
     summaryMd: text("summary_md"),
-    createdAt: integer("created_at", { mode: "timestamp" })
-      .notNull()
-      .default(sql`(unixepoch())`),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => ({ byTeam: index("reports_team_idx").on(t.teamId) }),
 );
 
 // ── Training logs (recomendações IA por atleta) ──────────────────────────
-export const trainingLogs = sqliteTable(
+export const trainingLogs = pgTable(
   "training_logs",
   {
     id: text("id").primaryKey(),
@@ -224,9 +221,7 @@ export const trainingLogs = sqliteTable(
     })
       .notNull()
       .default("pending"),
-    createdAt: integer("created_at", { mode: "timestamp" })
-      .notNull()
-      .default(sql`(unixepoch())`),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => ({ byPlayer: index("training_player_idx").on(t.playerId) }),
 );
