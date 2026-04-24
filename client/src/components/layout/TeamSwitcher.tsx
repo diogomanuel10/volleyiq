@@ -3,7 +3,11 @@ import { useState, useRef, useEffect } from "react";
 import { useTeam } from "@/hooks/useTeam";
 import { cn } from "@/lib/utils";
 
-export function TeamSwitcher() {
+interface Props {
+  collapsed?: boolean;
+}
+
+export function TeamSwitcher({ collapsed = false }: Props) {
   const { teams, team, setTeam, isLoading } = useTeam();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -18,28 +22,44 @@ export function TeamSwitcher() {
   }, [open]);
 
   if (isLoading) {
-    return (
-      <div className="h-9 rounded-md bg-muted animate-pulse" />
-    );
+    return <div className="h-9 rounded-md bg-muted animate-pulse" />;
   }
   if (!team) return null;
+
+  const initials = team.name.slice(0, 2).toUpperCase();
 
   return (
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-2 rounded-md border bg-background px-3 h-9 text-sm hover:bg-accent transition-colors"
+        title={collapsed ? team.name : undefined}
+        className={cn(
+          "w-full flex items-center rounded-md border bg-background text-sm hover:bg-accent transition-colors",
+          collapsed ? "justify-center h-9" : "justify-between gap-2 px-3 h-9",
+        )}
       >
-        <div className="flex items-center gap-2 min-w-0">
+        <div
+          className={cn(
+            "flex items-center min-w-0",
+            collapsed ? "" : "gap-2",
+          )}
+        >
           <div className="h-6 w-6 rounded-md bg-primary/10 text-primary grid place-items-center text-xs font-bold shrink-0">
-            {team.name.slice(0, 2).toUpperCase()}
+            {initials}
           </div>
-          <span className="truncate">{team.name}</span>
+          {!collapsed && <span className="truncate">{team.name}</span>}
         </div>
-        <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+        {!collapsed && (
+          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+        )}
       </button>
       {open && (
-        <div className="absolute z-30 top-full left-0 right-0 mt-1 rounded-md border bg-popover text-popover-foreground shadow-md py-1">
+        <div
+          className={cn(
+            "absolute z-30 top-full mt-1 rounded-md border bg-card text-card-foreground shadow-md py-1",
+            collapsed ? "left-full ml-1 min-w-[180px]" : "left-0 right-0",
+          )}
+        >
           {teams.map((t) => (
             <button
               key={t.id}
