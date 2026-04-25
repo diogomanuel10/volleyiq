@@ -25,6 +25,18 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate, formatPct, cn } from "@/lib/utils";
 import { VideoPanel, type VideoPanelHandle } from "@/components/scout/VideoPanel";
+import {
+  HeatmapCourt,
+  type HeatmapZone,
+} from "@/components/scout/HeatmapCourt";
+import {
+  RotationTable,
+  type RotationRow,
+} from "@/components/scout/RotationTable";
+import {
+  SetterDistributionCard,
+  type SetterRow,
+} from "@/components/scout/SetterDistributionCard";
 import type { Match } from "@shared/schema";
 
 interface PlayerLine {
@@ -73,6 +85,11 @@ interface PostMatchSummary {
   players: PlayerLine[];
   highlights: Array<{ playerId: string; title: string; subtitle: string }>;
   taggedMoments: TaggedMoment[];
+  rotationStats: RotationRow[];
+  attackHeatmap: { zones: HeatmapZone[]; total: number; maxCount: number };
+  serveHeatmap: { zones: HeatmapZone[]; total: number; maxCount: number };
+  receptionHeatmap: { zones: HeatmapZone[]; total: number; maxCount: number };
+  setters: SetterRow[];
 }
 
 const ACTION_SHORT: Record<string, string> = {
@@ -339,6 +356,101 @@ function Summary({
               </Card>
             </motion.div>
           ))}
+        </section>
+      )}
+
+      {/* Per-rotation stats */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Shield className="h-4 w-4 text-primary" /> Rotações
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Sideout (recepção) e Break-point (serviço) por rotação. Verde
+            indica rotação acima do standard, vermelho abaixo.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <RotationTable rows={s.rotationStats} />
+        </CardContent>
+      </Card>
+
+      {/* Heatmaps */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Target className="h-4 w-4 text-primary" /> Ataque
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Onde caíram os ataques no campo adversário ({s.attackHeatmap.total}).
+            </p>
+          </CardHeader>
+          <CardContent>
+            <HeatmapCourt
+              zones={s.attackHeatmap.zones}
+              maxCount={s.attackHeatmap.maxCount}
+              side="opponent"
+              ariaLabel="Heatmap de ataques"
+            />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Swords className="h-4 w-4 text-primary" /> Serviço
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Onde caíram os serviços no campo adversário ({s.serveHeatmap.total}).
+            </p>
+          </CardHeader>
+          <CardContent>
+            <HeatmapCourt
+              zones={s.serveHeatmap.zones}
+              maxCount={s.serveHeatmap.maxCount}
+              side="opponent"
+              ariaLabel="Heatmap de serviços"
+            />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Activity className="h-4 w-4 text-primary" /> Recepção
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Onde a equipa recebeu na nossa metade ({s.receptionHeatmap.total}).
+            </p>
+          </CardHeader>
+          <CardContent>
+            <HeatmapCourt
+              zones={s.receptionHeatmap.zones}
+              maxCount={s.receptionHeatmap.maxCount}
+              side="ours"
+              ariaLabel="Heatmap de recepções"
+            />
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* Distribuição de setter */}
+      {s.setters.length > 0 && (
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-base font-semibold flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-primary" /> Distribuição de
+              setter
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Para onde cada distribuidor enviou bola, e quantas terminaram
+              em ponto.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {s.setters.map((setter) => (
+              <SetterDistributionCard key={setter.setterId} setter={setter} />
+            ))}
+          </div>
         </section>
       )}
 

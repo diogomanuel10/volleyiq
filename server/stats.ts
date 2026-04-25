@@ -317,6 +317,52 @@ export interface TaggedMoment {
   result: string;
 }
 
+/**
+ * Estatísticas por rotação 1–6. `sideOutPct` = % de rallies ganhos quando a
+ * equipa recebia (não estava a servir). `breakPointPct` = % de rallies
+ * ganhos quando estava a servir. KPIs que ditam a rotação fraca e forte.
+ */
+export interface RotationStat {
+  rotation: number;
+  totalRallies: number;
+  serveRallies: number;
+  serveWon: number;
+  receiveRallies: number;
+  receiveWon: number;
+  sideOutPct: number;
+  breakPointPct: number;
+}
+
+export interface HeatmapZoneCount {
+  zone: number;
+  count: number;
+  kills?: number; // só para attack/serve — quantos terminaram em ponto
+}
+
+export interface Heatmap {
+  type: "attack" | "serve" | "reception";
+  zones: HeatmapZoneCount[];
+  total: number;
+  maxCount: number;
+}
+
+export interface SetterTarget {
+  attackerId: string;
+  attackerName: string;
+  attackerNumber: number;
+  attackerPosition: Player["position"];
+  count: number;
+  kills: number;
+}
+
+export interface SetterDistribution {
+  setterId: string;
+  setterName: string;
+  setterNumber: number;
+  totalSets: number;
+  targets: SetterTarget[];
+}
+
 export interface PostMatchSummary {
   matchId: string;
   opponent: string;
@@ -332,6 +378,11 @@ export interface PostMatchSummary {
     subtitle: string;
   }>;
   taggedMoments: TaggedMoment[];
+  rotationStats: RotationStat[];
+  attackHeatmap: Heatmap;
+  serveHeatmap: Heatmap;
+  receptionHeatmap: Heatmap;
+  setters: SetterDistribution[];
 }
 
 export async function buildPostMatch(
@@ -437,6 +488,16 @@ export async function buildPostMatch(
       };
     });
 
+  const sortedRows = [...rows].sort(
+    (a, b) =>
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+  );
+  const rotationStats = buildRotationStats(sortedRows);
+  const attackHeatmap = buildHeatmap(sortedRows, "attack");
+  const serveHeatmap = buildHeatmap(sortedRows, "serve");
+  const receptionHeatmap = buildHeatmap(sortedRows, "reception");
+  const setters = buildSetterDistribution(sortedRows, rosterById);
+
   return {
     matchId,
     opponent: match.opponent,
@@ -455,7 +516,183 @@ export async function buildPostMatch(
     players: lines,
     highlights,
     taggedMoments,
+    rotationStats,
+    attackHeatmap,
+    serveHeatmap,
+    receptionHeatmap,
+    setters,
   };
+}
+
+// ── Rotation stats ──────────────────────────────────────────────────────
+type ActionRow = typeof actions.$inferSelect;
+
+const POINT_FOR_US = (a: ActionRow) =>
+  (a.type === "attack" && a.result === "kill") ||
+  (a.type === "serve" && a.result === "ace") ||
+  (a.type === "block" && a.result === "stuff");
+
+const POINT_AGAINST_US = (a: ActionRow) =>
+  a.result === "error" || (a.type === "attack" && a.result === "blocked");
+
+function buildRotationStats(sortedRows: ActionRow[]): RotationStat[] {
+  // Agrupa por rallyId. Para cada rally: rotação inicial, se servimos ou
+  // recebemos, e se ganhámos. A "vitória" no rally é determinada pelo
+  // resultado da última acção registada (mesmo modelo do reducer client).
+  const rallies = groupBy(sortedRows, (a) => a.rallyId ?? a.id);
+  const buckets = new Map<number, RotationStat>();
+  for (let r = 1; r <= 6; r++) {
+    buckets.set(r, {
+      rotation: r,
+      totalRallies: 0,
+      serveRallies: 0,
+      serveWon: 0,
+      receiveRallies: 0,
+      receiveWon: 0,
+      sideOutPct: 0,
+      breakPointPct: 0,
+    });
+  }
+
+  for (const [, rallyActions] of rallies) {
+    if (!rallyActions.length) continue;
+    const first = rallyActions[0];
+    const last = rallyActions[rallyActions.length - 1];
+    const rot = first.rotation ?? 1;
+    if (rot < 1 || rot > 6) continue;
+    const stat = buckets.get(rot)!;
+
+    const weServed = first.type === "serve";
+    const weWon = POINT_FOR_US(last) && !POINT_AGAINST_US(last);
+    const weLost = POINT_AGAINST_US(last);
+
+    stat.totalRallies++;
+    if (weServed) {
+      stat.serveRallies++;
+      if (weWon) stat.serveWon++;
+    } else {
+      stat.receiveRallies++;
+      if (weWon) stat.receiveWon++;
+    }
+    // Rallies sem resolução (só `in_play` no fim) ficam contados no total
+    // mas sem incrementar `won` — neutros.
+    void weLost;
+  }
+
+  for (const stat of buckets.values()) {
+    stat.sideOutPct = stat.receiveRallies
+      ? round1((stat.receiveWon / stat.receiveRallies) * 100)
+      : 0;
+    stat.breakPointPct = stat.serveRallies
+      ? round1((stat.serveWon / stat.serveRallies) * 100)
+      : 0;
+  }
+
+  return Array.from(buckets.values());
+}
+
+// ── Heatmaps ────────────────────────────────────────────────────────────
+function buildHeatmap(
+  rows: ActionRow[],
+  type: "attack" | "serve" | "reception",
+): Heatmap {
+  const filtered = rows.filter(
+    (a) => a.type === type && a.zoneTo != null && a.zoneTo >= 1 && a.zoneTo <= 9,
+  );
+  const byZone = new Map<number, { count: number; kills: number }>();
+  for (const a of filtered) {
+    const z = a.zoneTo!;
+    const cur = byZone.get(z) ?? { count: 0, kills: 0 };
+    cur.count++;
+    if (a.result === "kill" || a.result === "ace") cur.kills++;
+    byZone.set(z, cur);
+  }
+  const zones: HeatmapZoneCount[] = [];
+  let maxCount = 0;
+  for (let z = 1; z <= 9; z++) {
+    const v = byZone.get(z);
+    const count = v?.count ?? 0;
+    if (count > maxCount) maxCount = count;
+    zones.push({
+      zone: z,
+      count,
+      kills: type === "reception" ? undefined : v?.kills ?? 0,
+    });
+  }
+  return { type, zones, total: filtered.length, maxCount };
+}
+
+// ── Setter distribution ─────────────────────────────────────────────────
+function buildSetterDistribution(
+  sortedRows: ActionRow[],
+  rosterById: Map<string, Player>,
+): SetterDistribution[] {
+  // Para cada acção `set`, encontrar o próximo `attack` no mesmo rally e
+  // creditar (setter -> attacker). Acções sem playerId são ignoradas.
+  const setters = new Map<string, SetterDistribution>();
+  const targetIndex = new Map<string, Map<string, SetterTarget>>();
+
+  for (let i = 0; i < sortedRows.length; i++) {
+    const set = sortedRows[i];
+    if (set.type !== "set" || !set.playerId) continue;
+    const setterPlayer = rosterById.get(set.playerId);
+    if (!setterPlayer) continue;
+
+    // Procura o próximo attack do mesmo rally (geralmente i+1, mas pode
+    // haver outras acções a meio em logs imperfeitos — varremos até ao
+    // próximo rallyId diferente).
+    let attackAction: ActionRow | null = null;
+    for (let j = i + 1; j < sortedRows.length; j++) {
+      const next = sortedRows[j];
+      if (next.rallyId !== set.rallyId) break;
+      if (next.type === "attack") {
+        attackAction = next;
+        break;
+      }
+    }
+    if (!attackAction || !attackAction.playerId) continue;
+    const attackerPlayer = rosterById.get(attackAction.playerId);
+    if (!attackerPlayer) continue;
+
+    let bucket = setters.get(set.playerId);
+    if (!bucket) {
+      bucket = {
+        setterId: set.playerId,
+        setterName: `${setterPlayer.firstName} ${setterPlayer.lastName}`,
+        setterNumber: setterPlayer.number,
+        totalSets: 0,
+        targets: [],
+      };
+      setters.set(set.playerId, bucket);
+      targetIndex.set(set.playerId, new Map());
+    }
+    bucket.totalSets++;
+
+    const targets = targetIndex.get(set.playerId)!;
+    let t = targets.get(attackAction.playerId);
+    if (!t) {
+      t = {
+        attackerId: attackAction.playerId,
+        attackerName: `${attackerPlayer.firstName} ${attackerPlayer.lastName}`,
+        attackerNumber: attackerPlayer.number,
+        attackerPosition: attackerPlayer.position,
+        count: 0,
+        kills: 0,
+      };
+      targets.set(attackAction.playerId, t);
+      bucket.targets.push(t);
+    }
+    t.count++;
+    if (attackAction.result === "kill") t.kills++;
+  }
+
+  // Ordena targets por contagem desc, e setters por totalSets desc.
+  for (const s of setters.values()) {
+    s.targets.sort((a, b) => b.count - a.count);
+  }
+  return Array.from(setters.values()).sort(
+    (a, b) => b.totalSets - a.totalSets,
+  );
 }
 
 // ── Player training input ──────────────────────────────────────────────
