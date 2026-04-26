@@ -234,6 +234,28 @@ export async function deleteAction(id: string) {
   if (row) void mirrorDeleteAction(row.matchId, id);
 }
 
+/**
+ * Insere muitas acções de uma vez (usado pelo import de DataVolley). Não
+ * faz mirror para Firestore — assume-se que o jogo importado é histórico
+ * e não precisa de ser visto em tempo real no Second Screen.
+ */
+export async function bulkCreateActions(payload: InsertAction[]) {
+  if (payload.length === 0) return [];
+  // Postgres tem limite prático de ~32k parâmetros por query. Ataques de
+  // ~1000 linhas com ~14 colunas ainda ficam confortavelmente abaixo, mas
+  // partimos em chunks de 500 para não rebentar com partidas muito longas.
+  const chunkSize = 500;
+  const created: typeof payload = [];
+  for (let i = 0; i < payload.length; i += chunkSize) {
+    const chunk = payload
+      .slice(i, i + chunkSize)
+      .map((a) => ({ ...a, id: newId() }));
+    await db.insert(actions).values(chunk);
+    created.push(...chunk);
+  }
+  return created.length;
+}
+
 // ── Checklist ────────────────────────────────────────────────────────────
 const CHECKLIST_DEFAULTS: Array<{
   category: (typeof checklistItems.$inferInsert)["category"];

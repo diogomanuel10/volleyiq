@@ -238,6 +238,32 @@ router.delete("/actions/:id", async (req, res) => {
   res.status(204).end();
 });
 
+// Bulk insert (usado pelo import de DataVolley). Limita a 5000 linhas para
+// evitar payloads patológicos.
+const bulkActionsSchema = z.object({
+  matchId: z.string().min(1),
+  teamId: z.string().min(1),
+  actions: z.array(insertActionSchema).min(1).max(5000),
+});
+
+router.post("/actions/bulk", async (req, res) => {
+  const parsed = bulkActionsSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.flatten() });
+    return;
+  }
+  const ok = await storage.userBelongsToTeam(req.user!.uid, parsed.data.teamId);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  // Garantia extra: todas as acções têm de pertencer ao matchId fornecido.
+  const wrong = parsed.data.actions.filter((a) => a.matchId !== parsed.data.matchId);
+  if (wrong.length) {
+    res.status(400).json({ error: "matchId mismatch", count: wrong.length });
+    return;
+  }
+  const inserted = await storage.bulkCreateActions(parsed.data.actions);
+  res.status(201).json({ inserted });
+});
+
 // ── Checklist ────────────────────────────────────────────────────────────
 router.get("/matches/:matchId/checklist", async (req, res) => {
   res.json(await storage.listChecklist(req.params.matchId));

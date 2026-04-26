@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dialog";
 import type { Match, OpponentTeam } from "@shared/schema";
 import { MatchImportDialog } from "@/components/MatchImportDialog";
+import { DvwImportDialog } from "@/components/DvwImportDialog";
 
 type Status = Match["status"];
 
@@ -56,6 +57,7 @@ export default function Matches() {
   const [statusFilter, setStatusFilter] = useState<"all" | Status>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [dvwOpen, setDvwOpen] = useState(false);
 
   const matchesQuery = useQuery({
     queryKey: ["matches", team?.id],
@@ -92,6 +94,9 @@ export default function Matches() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setDvwOpen(true)}>
+            <Upload className="h-4 w-4" /> DataVolley
+          </Button>
           <Button variant="outline" onClick={() => setImportOpen(true)}>
             <Upload className="h-4 w-4" /> Importar
           </Button>
@@ -117,6 +122,12 @@ export default function Matches() {
         onOpenChange={setImportOpen}
         teamId={team.id}
         existingMatches={matchesQuery.data ?? []}
+      />
+
+      <DvwImportDialog
+        open={dvwOpen}
+        onOpenChange={setDvwOpen}
+        teamId={team.id}
       />
 
       <div className="flex flex-wrap gap-2 text-sm">
