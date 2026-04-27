@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "./db";
 import { actions, matches, players } from "@shared/schema";
 import type { Action, Match, Player } from "@shared/schema";
@@ -28,6 +28,30 @@ export interface DashboardStats {
   trend: Array<{ label: string; killPct: number; sideOut: number }>;
   radar: Array<{ axis: string; value: number }>;
   rotation: Array<{ rotation: string; pct: number }>;
+  // Agregados ao nível da época (todos os jogos terminados, não apenas os
+  // últimos 6). Estas listas alimentam os blocos "Top atacantes" e
+  // "Adversários" no Dashboard.
+  topScorers: Array<{
+    playerId: string;
+    name: string;
+    number: number;
+    position: string;
+    matches: number;
+    kills: number;
+    attackErrors: number;
+    aces: number;
+    blocks: number;
+    points: number; // kills + aces + stuffs
+  }>;
+  opponentBreakdown: Array<{
+    opponent: string;
+    matches: number;
+    wins: number;
+    losses: number;
+    setsWon: number;
+    setsLost: number;
+  }>;
+  rotationStats: RotationStat[];
 }
 
 const RECENT_LIMIT = 6;
@@ -56,6 +80,33 @@ export async function buildDashboard(teamId: string): Promise<DashboardStats> {
 
   const all = [...byMatch.values()].flat();
 
+  // ── Agregados de época (todos os jogos do team, não só os 6 recentes) ──
+  const allMatches = await db
+    .select()
+    .from(matches)
+    .where(eq(matches.teamId, teamId));
+  const allActionRows: Action[] = [];
+  if (allMatches.length) {
+    const ids = allMatches.map((m) => m.id);
+    const rows = await db
+      .select()
+      .from(actions)
+      .where(inArray(actions.matchId, ids));
+    allActionRows.push(...rows);
+  }
+  const roster = await db
+    .select()
+    .from(players)
+    .where(eq(players.teamId, teamId));
+  const rosterById = new Map(roster.map((p) => [p.id, p]));
+  const sortedSeason = [...allActionRows].sort(
+    (a, b) =>
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+  );
+  const rotationStats = buildRotationStats(sortedSeason);
+  const topScorers = buildTopScorers(allActionRows, rosterById);
+  const opponentBreakdown = buildOpponentBreakdown(allMatches);
+
   return {
     sampleMatches: recentMatches.length,
     sampleActions: all.length,
@@ -70,7 +121,112 @@ export async function buildDashboard(teamId: string): Promise<DashboardStats> {
     trend: buildTrend(recentMatches, byMatch),
     radar: buildRadar(all),
     rotation: buildRotation(all),
+    topScorers,
+    opponentBreakdown,
+    rotationStats,
   };
+}
+
+function buildTopScorers(
+  rows: Action[],
+  rosterById: Map<string, Player>,
+): DashboardStats["topScorers"] {
+  // Agrupa por player; conta kills (attack#), aces (serve#), stuffs (block#)
+  // e attack errors. "points" = kills + aces + stuffs (pontos directos).
+  const buckets = new Map<
+    string,
+    {
+      playerId: string;
+      matches: Set<string>;
+      kills: number;
+      attackErrors: number;
+      aces: number;
+      blocks: number;
+    }
+  >();
+  for (const a of rows) {
+    if (!a.playerId) continue;
+    let b = buckets.get(a.playerId);
+    if (!b) {
+      b = {
+        playerId: a.playerId,
+        matches: new Set(),
+        kills: 0,
+        attackErrors: 0,
+        aces: 0,
+        blocks: 0,
+      };
+      buckets.set(a.playerId, b);
+    }
+    b.matches.add(a.matchId);
+    if (a.type === "attack" && a.result === "kill") b.kills++;
+    if (
+      a.type === "attack" &&
+      (a.result === "error" || a.result === "blocked")
+    )
+      b.attackErrors++;
+    if (a.type === "serve" && a.result === "ace") b.aces++;
+    if (a.type === "block" && a.result === "stuff") b.blocks++;
+  }
+  const list = [];
+  for (const b of buckets.values()) {
+    const p = rosterById.get(b.playerId);
+    if (!p) continue;
+    list.push({
+      playerId: b.playerId,
+      name: `${p.firstName} ${p.lastName}`,
+      number: p.number,
+      position: p.position,
+      matches: b.matches.size,
+      kills: b.kills,
+      attackErrors: b.attackErrors,
+      aces: b.aces,
+      blocks: b.blocks,
+      points: b.kills + b.aces + b.blocks,
+    });
+  }
+  return list.sort((a, b) => b.points - a.points).slice(0, 10);
+}
+
+function buildOpponentBreakdown(
+  ms: Match[],
+): DashboardStats["opponentBreakdown"] {
+  // Só conta jogos terminados.
+  const finished = ms.filter((m) => m.status === "finished");
+  const buckets = new Map<
+    string,
+    {
+      opponent: string;
+      matches: number;
+      wins: number;
+      losses: number;
+      setsWon: number;
+      setsLost: number;
+    }
+  >();
+  for (const m of finished) {
+    const key = m.opponent.trim() || "—";
+    let b = buckets.get(key);
+    if (!b) {
+      b = {
+        opponent: key,
+        matches: 0,
+        wins: 0,
+        losses: 0,
+        setsWon: 0,
+        setsLost: 0,
+      };
+      buckets.set(key, b);
+    }
+    b.matches++;
+    b.setsWon += m.setsWon;
+    b.setsLost += m.setsLost;
+    if (m.setsWon > m.setsLost) b.wins++;
+    else if (m.setsLost > m.setsWon) b.losses++;
+  }
+  return Array.from(buckets.values()).sort(
+    (a, b) => b.matches - a.matches || b.wins - a.wins,
+  );
 }
 
 // ── Cálculos individuais ────────────────────────────────────────────────

@@ -35,6 +35,36 @@ interface DashboardStats {
   trend: Array<{ label: string; killPct: number; sideOut: number }>;
   radar: Array<{ axis: string; value: number }>;
   rotation: Array<{ rotation: string; pct: number }>;
+  topScorers: Array<{
+    playerId: string;
+    name: string;
+    number: number;
+    position: string;
+    matches: number;
+    kills: number;
+    attackErrors: number;
+    aces: number;
+    blocks: number;
+    points: number;
+  }>;
+  opponentBreakdown: Array<{
+    opponent: string;
+    matches: number;
+    wins: number;
+    losses: number;
+    setsWon: number;
+    setsLost: number;
+  }>;
+  rotationStats: Array<{
+    rotation: number;
+    totalRallies: number;
+    serveRallies: number;
+    serveWon: number;
+    receiveRallies: number;
+    receiveWon: number;
+    sideOutPct: number;
+    breakPointPct: number;
+  }>;
 }
 
 // Fallback apresentado quando a equipa ainda não tem acções registadas —
@@ -74,6 +104,9 @@ const MOCK: DashboardStats = {
     { rotation: "R5", pct: 47 },
     { rotation: "R6", pct: 64 },
   ],
+  topScorers: [],
+  opponentBreakdown: [],
+  rotationStats: [],
 };
 
 export default function Dashboard() {
@@ -251,6 +284,179 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
+
+      {!statsQuery.isLoading && stats.rotationStats.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Rotações — toda a época</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Sideout (recepção) e Break-point (serviço) acumulados em todos
+              os jogos da equipa, não apenas os 6 mais recentes.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Rotação</th>
+                    <th className="px-3 py-2 text-right">Total</th>
+                    <th className="px-3 py-2 text-right">SO%</th>
+                    <th className="px-3 py-2 text-right">BP%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.rotationStats.map((r) => (
+                    <tr key={r.rotation} className="border-t">
+                      <td className="px-3 py-2 font-mono">P{r.rotation}</td>
+                      <td className="px-3 py-2 text-right">
+                        {r.totalRallies}
+                      </td>
+                      <td
+                        className={cn(
+                          "px-3 py-2 text-right font-mono",
+                          r.receiveRallies === 0
+                            ? "text-muted-foreground"
+                            : r.sideOutPct >= 60
+                              ? "text-emerald-600 dark:text-emerald-400 font-semibold"
+                              : r.sideOutPct < 40
+                                ? "text-destructive"
+                                : "",
+                        )}
+                      >
+                        {r.receiveRallies ? `${r.sideOutPct}%` : "—"}
+                      </td>
+                      <td
+                        className={cn(
+                          "px-3 py-2 text-right font-mono",
+                          r.serveRallies === 0
+                            ? "text-muted-foreground"
+                            : r.breakPointPct >= 35
+                              ? "text-emerald-600 dark:text-emerald-400 font-semibold"
+                              : r.breakPointPct < 20
+                                ? "text-destructive"
+                                : "",
+                        )}
+                      >
+                        {r.serveRallies ? `${r.breakPointPct}%` : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {!statsQuery.isLoading && stats.topScorers.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Top atletas — pontos directos</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Soma de kills + aces + stuff blocks na época.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted">
+                    <tr>
+                      <th className="px-3 py-2 text-left">#</th>
+                      <th className="px-3 py-2 text-left">Atleta</th>
+                      <th className="px-3 py-2 text-right">Pts</th>
+                      <th className="px-3 py-2 text-right">K</th>
+                      <th className="px-3 py-2 text-right">A</th>
+                      <th className="px-3 py-2 text-right">B</th>
+                      <th className="px-3 py-2 text-right">Jogos</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.topScorers.map((t) => (
+                      <tr key={t.playerId} className="border-t">
+                        <td className="px-3 py-2 font-mono text-muted-foreground">
+                          {t.number}
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className="font-medium">{t.name}</span>{" "}
+                          <span className="text-xs text-muted-foreground">
+                            · {t.position}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono font-semibold">
+                          {t.points}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono">
+                          {t.kills}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono">
+                          {t.aces}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono">
+                          {t.blocks}
+                        </td>
+                        <td className="px-3 py-2 text-right text-muted-foreground">
+                          {t.matches}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {!statsQuery.isLoading && stats.opponentBreakdown.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Adversários — registo</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Vitórias/derrotas e sets contra cada adversário (apenas
+                jogos terminados).
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Adversário</th>
+                      <th className="px-3 py-2 text-right">Jogos</th>
+                      <th className="px-3 py-2 text-right">V-D</th>
+                      <th className="px-3 py-2 text-right">Sets</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.opponentBreakdown.map((o) => (
+                      <tr key={o.opponent} className="border-t">
+                        <td className="px-3 py-2 truncate">{o.opponent}</td>
+                        <td className="px-3 py-2 text-right">{o.matches}</td>
+                        <td
+                          className={cn(
+                            "px-3 py-2 text-right font-mono",
+                            o.wins > o.losses
+                              ? "text-emerald-600 dark:text-emerald-400 font-semibold"
+                              : o.losses > o.wins
+                                ? "text-destructive"
+                                : "",
+                          )}
+                        >
+                          {o.wins}-{o.losses}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono text-muted-foreground">
+                          {o.setsWon}-{o.setsLost}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }
