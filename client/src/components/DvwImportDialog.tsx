@@ -307,11 +307,11 @@ export function DvwImportDialog({ open, onOpenChange, teamId }: Props) {
             <input
               ref={inputRef}
               type="file"
-              // Aceitamos qualquer ficheiro e deixamos o parser validar pelo
-              // conteúdo. Com `.dvw` explícito, alguns browsers (Safari /
-              // macOS Finder) cinzentam o ficheiro porque o sistema não
-              // reconhece a extensão como UTI conhecido.
-              accept="*"
+              // Em iOS Safari, omitir `accept` (ou usar */*) é o que faz o
+              // picker abrir Files / iCloud Drive. Listas restritivas
+              // (ex: `.dvw`) são ignoradas e o picker fica preso à galeria.
+              // O parser valida o conteúdo na mesma.
+              accept="*/*"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
