@@ -307,7 +307,11 @@ export function DvwImportDialog({ open, onOpenChange, teamId }: Props) {
             <input
               ref={inputRef}
               type="file"
-              accept=".dvw,text/plain"
+              // Aceitamos qualquer ficheiro e deixamos o parser validar pelo
+              // conteúdo. Com `.dvw` explícito, alguns browsers (Safari /
+              // macOS Finder) cinzentam o ficheiro porque o sistema não
+              // reconhece a extensão como UTI conhecido.
+              accept="*"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
