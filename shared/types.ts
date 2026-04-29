@@ -273,3 +273,4 @@ export interface TrainingRecommendation {
   rationale: string;
   drills: Array<{ name: string; durationMin: number; description: string }>;
 }
+
