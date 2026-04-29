@@ -61,11 +61,11 @@ const ZONE_TO_CELL_OPP: Record<Zone, { col: number; row: number }> = {
 // row 0 = linha de rede, row 2 = linha de fundo
 // A linha do meio (row 1) não tem jogadoras — só é usada para zonas de stats
 const SLOT_POSITIONS: Array<{ col: 0 | 1 | 2; row: 0 | 1 | 2; pos: number }> = [
-  { col: 2, row: 2, pos: 1 }, // Posição 1 — fundo direita (servidor)
-  { col: 2, row: 0, pos: 2 }, // Posição 2 — rede direita
+  { col: 2, row: 2, pos: 5 }, // Posição 1 — fundo direita (servidor)
+  { col: 2, row: 0, pos: 4 }, // Posição 2 — rede direita
   { col: 1, row: 0, pos: 3 }, // Posição 3 — rede centro
-  { col: 0, row: 0, pos: 4 }, // Posição 4 — rede esquerda
-  { col: 0, row: 2, pos: 5 }, // Posição 5 — fundo esquerda
+  { col: 0, row: 0, pos: 2 }, // Posição 4 — rede esquerda
+  { col: 0, row: 2, pos: 1 }, // Posição 5 — fundo esquerda
   { col: 1, row: 2, pos: 6 }, // Posição 6 — fundo centro
 ];
 
