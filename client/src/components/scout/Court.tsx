@@ -116,6 +116,7 @@ export function Court({
     <svg
       viewBox={`0 0 ${W} ${H}`}
       className={cn("w-full h-auto select-none", className)}
+      preserveAspectRatio="xMidYMid meet" 
       aria-label="Campo de voleibol"
     >
       <defs>

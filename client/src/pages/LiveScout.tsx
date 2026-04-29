@@ -505,7 +505,7 @@ function Scout({
             onNextSet={() => dispatch({ kind: "nextSet" })}
           />
 
-          <div className="rounded-xl border bg-card p-3 md:p-4">
+          <div className="rounded-xl border bg-card p-3 md:p-4 overflow-hidden">
             <div className="flex items-center justify-between mb-2">
               <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Campo
