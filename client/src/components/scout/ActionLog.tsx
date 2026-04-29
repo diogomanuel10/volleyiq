@@ -6,6 +6,7 @@ import {
   ACTION_LABEL,
   RESULT_LABEL,
   RESULT_COLOR,
+  getDvCode
 } from "@shared/types";
 import { Button } from "@/components/ui/button";
 
@@ -41,6 +42,7 @@ export function ActionLog({
         <AnimatePresence initial={false}>
           {recent.map((a) => {
             const p = byId.get(a.playerId);
+            const dv = getDvCode(a.type, a.result);
             return (
               <motion.div
                 key={a.id}
@@ -59,7 +61,7 @@ export function ActionLog({
                 <span
                   className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${RESULT_COLOR[a.result]}`}
                 >
-                  {RESULT_LABEL[a.result]}
+                  {dv ? `${dv} ${RESULT_LABEL[a.result]}` : RESULT_LABEL[a.result]}
                 </span>
               </motion.div>
             );

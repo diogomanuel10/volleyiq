@@ -15,6 +15,7 @@ import {
   Gauge,
 } from "lucide-react";
 import { useTeam } from "@/hooks/useTeam";
+import { useScoutKeyboard } from "@/hooks/useScoutKeyboard";
 import { api } from "@/lib/api";
 import {
   deriveSuggestion,
@@ -146,8 +147,10 @@ function Scout({
     teamId,
     team.plan,
   );
-  const [state, dispatch] = useScoutState(mode);
+const [state, dispatch] = useScoutState(mode);
 
+useScoutKeyboard(state, dispatch);
+  
   // Side em que o utilizador clicou (não persiste; só para desenhar a seta).
   const [zoneFromSide, setZoneFromSide] = useState<"opponent" | "ours" | null>(
     null,
@@ -430,7 +433,7 @@ function Scout({
   }
 
   return (
-    <div className="p-3 md:p-6 max-w-7xl mx-auto space-y-3 md:space-y-4">
+    <div className="p-3 md:p-6 mx-auto space-y-3 md:space-y-4">
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
           <Button variant="ghost" size="icon" onClick={onBack} aria-label="Voltar">
@@ -505,7 +508,7 @@ function Scout({
             onNextSet={() => dispatch({ kind: "nextSet" })}
           />
 
-          <div className="rounded-xl border bg-card p-3 md:p-4 overflow-hidden">
+          <div className="rounded-xl border bg-card p-3 md:p-4">
             <div className="flex items-center justify-between mb-2">
               <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Campo
@@ -515,7 +518,6 @@ function Scout({
               </Badge>
             </div>
             <Court
-              className="max-h-[280px] w-full"
               selectedZone={state.zoneTo}
               selectedZoneFrom={state.zoneFrom}
               selectedZoneSide={zoneToSide}

@@ -13,6 +13,8 @@ export const ACTION_TYPES = [
 ] as const;
 export type ActionType = (typeof ACTION_TYPES)[number];
 
+export type DvCode = "#" | "+" | "-" | "/" | "!" | "=";
+
 export const ACTION_RESULTS = [
   "kill",       // ponto ganho em ataque
   "error",      // erro próprio
@@ -77,6 +79,89 @@ export const RESULTS_BY_ACTION: Record<ActionType, readonly ActionResult[]> = {
   block: ["stuff", "touch", "error", "in_play"],
   dig: ["perfect", "good", "poor", "error"],
 };
+
+/** Código DataVolley para cada (tipo de acção, resultado). */
+export const RESULT_DV_CODE: Record<
+  ActionType,
+  Partial<Record<ActionResult, DvCode>>
+> = {
+  // SERVIÇO (S)
+  // DV avalia pela qualidade da receção adversária; com os resultados que tens:
+  // - ace      → ponto directo  (#)
+  // - error    → erro de serviço (=)
+  // - in_play  → serviço neutro/positivo (+)
+  serve: {
+    ace: "#",
+    error: "=",
+    in_play: "+",
+  },
+
+  // RECEÇÃO (R)
+  // Clássico DV: # perfeita, + boa, - má, = erro.
+  reception: {
+    perfect: "#",
+    good: "+",
+    poor: "-",
+    error: "=",
+  },
+
+  // PASSE / DISTRIBUIÇÃO (E)
+  // Mesma lógica da receção.
+  set: {
+    perfect: "#",
+    good: "+",
+    poor: "-",
+    error: "=",
+  },
+
+  // ATAQUE (A)
+  // # kill, / tooled (block-out), ! continuidade neutra, - ataque negativo,
+  // = erro.
+  attack: {
+    kill: "#",
+    tooled: "/",
+    in_play: "!",
+    blocked: "-",
+    error: "=",
+  },
+
+  // BLOCO (B)
+  // # stuff (ponto directo), + bom toque, ! continuidade neutra, = erro.
+  block: {
+    stuff: "#",
+    touch: "+",
+    in_play: "!",
+    error: "=",
+  },
+
+  // DEFESA (D / dig)
+  // Igual à receção: # perfeita, + boa, - má, = erro.
+  dig: {
+    perfect: "#",
+    good: "+",
+    poor: "-",
+    error: "=",
+  },
+};
+
+export function getResultByDv(
+  actionType: ActionType,
+  dv: DvCode
+): ActionResult | null {
+  const entries = Object.entries(RESULT_DV_CODE[actionType]) as Array<
+    [ActionResult, DvCode]
+  >;
+
+  const found = entries.find(([, code]) => code === dv);
+  return found ? found[0] : null;
+}
+
+export function getDvCode(
+  actionType: ActionType,
+  result: ActionResult
+): DvCode | null {
+  return RESULT_DV_CODE[actionType][result] ?? null;
+}
 
 /** Classe Tailwind para cada resultado — mantém coerência cross-components. */
 export const RESULT_COLOR: Record<ActionResult, string> = {

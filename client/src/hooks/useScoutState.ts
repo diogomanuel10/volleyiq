@@ -38,7 +38,7 @@ export type Step =
   | "zone"
   | "result";
 
-interface ScoutState {
+export interface ScoutState {
   mode: ScoutMode;
   step: Step;
   playerId: string | null;

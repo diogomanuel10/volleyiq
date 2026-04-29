@@ -25,7 +25,7 @@ export interface CourtProps {
 // ── Geometria horizontal ─────────────────────────────────────────────────
 const W = 600;
 const H = 300;
-const MARGIN = 6;
+const MARGIN = 12;
 const HALF_W = (W - MARGIN * 2) / 2;
 const COURT_H = H - MARGIN * 2;
 const CELL_W = HALF_W / 3;
@@ -116,7 +116,6 @@ export function Court({
     <svg
       viewBox={`0 0 ${W} ${H}`}
       className={cn("w-full h-auto select-none", className)}
-      preserveAspectRatio="xMidYMid meet" 
       aria-label="Campo de voleibol"
     >
       <defs>
