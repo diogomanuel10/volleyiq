@@ -26,6 +26,13 @@ export interface LoggedAction {
   rotation: number;
   setNumber: number;
   timestamp: number;
+  /**
+   * Estado de saque/rotação ANTES desta acção. Usado para restaurar em undo
+   * sem ter de recomputar a partir do log inteiro. Best-effort em hidratação
+   * (acções carregadas da API não trazem este campo).
+   */
+  prevServingTeam?: Side;
+  prevRotation?: number;
 }
 
 export type Step =
@@ -38,6 +45,8 @@ export type Step =
   | "zone"
   | "result";
 
+export type Side = "home" | "away";
+
 export interface ScoutState {
   mode: ScoutMode;
   step: Step;
@@ -49,6 +58,8 @@ export interface ScoutState {
   rotation: number;
   homeScore: number;
   awayScore: number;
+  /** Quem está actualmente a servir. */
+  servingTeam: Side;
   rallyId: string;
   log: LoggedAction[];
 }
@@ -64,8 +75,9 @@ type ScoutEvent =
   | { kind: "undo" }
   | { kind: "reset" }
   | { kind: "setMode"; mode: ScoutMode }
-  | { kind: "adjustScore"; side: "home" | "away"; delta: 1 | -1 }
+  | { kind: "adjustScore"; side: Side; delta: 1 | -1 }
   | { kind: "rotate"; direction: 1 | -1 }
+  | { kind: "setServingTeam"; team: Side }
   | { kind: "nextSet" }
   | { kind: "prevSet" }
   | { kind: "hydrate"; actions: LoggedAction[] };
@@ -81,6 +93,7 @@ const initial: ScoutState = {
   rotation: 1,
   homeScore: 0,
   awayScore: 0,
+  servingTeam: "home",
   rallyId: nanoid(8),
   log: [],
 };
@@ -173,6 +186,8 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
         rotation: s.rotation,
         setNumber: s.setNumber,
         timestamp: Date.now(),
+        prevServingTeam: s.servingTeam,
+        prevRotation: s.rotation,
       };
       const pointScored =
         (logged.type === "attack" && logged.result === "kill") ||
@@ -182,6 +197,23 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
         logged.result === "error" ||
         (logged.type === "attack" && logged.result === "blocked");
 
+      // ── Side-out + auto-rotação ─────────────────────────────────────
+      // Se este resultado terminar o rally, descobrimos o vencedor e —
+      // se vencer quem não estava a servir — fazemos side-out e rotação.
+      // Rotação só conta para nós (única lateralidade que rastreamos).
+      const rallyEnded = TERMINAL_RESULTS.has(logged.result);
+      let nextServingTeam = s.servingTeam;
+      let nextRotation = s.rotation;
+      if (rallyEnded) {
+        const winner: Side = pointScored ? "home" : "away";
+        if (winner !== s.servingTeam) {
+          nextServingTeam = winner;
+          if (winner === "home") {
+            nextRotation = (s.rotation % 6) + 1;
+          }
+        }
+      }
+
       return {
         ...s,
         step: "idle",
@@ -190,11 +222,11 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
         zoneFrom: null,
         zoneTo: null,
         log: [...s.log, logged],
-        rallyId: TERMINAL_RESULTS.has(logged.result)
-          ? nanoid(8)
-          : s.rallyId,
+        rallyId: rallyEnded ? nanoid(8) : s.rallyId,
         homeScore: pointScored ? s.homeScore + 1 : s.homeScore,
         awayScore: pointLost ? s.awayScore + 1 : s.awayScore,
+        servingTeam: nextServingTeam,
+        rotation: nextRotation,
       };
     }
     case "undo": {
@@ -207,11 +239,17 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
       const pointLost =
         last.result === "error" ||
         (last.type === "attack" && last.result === "blocked");
+      // Restaura saque/rotação a partir do snapshot guardado na acção.
+      // Se faltarem (acção hidratada da API), best-effort: mantém actuais.
+      const restoredServing = last.prevServingTeam ?? s.servingTeam;
+      const restoredRotation = last.prevRotation ?? s.rotation;
       return {
         ...s,
         log: s.log.slice(0, -1),
         homeScore: pointScored ? Math.max(0, s.homeScore - 1) : s.homeScore,
         awayScore: pointLost ? Math.max(0, s.awayScore - 1) : s.awayScore,
+        servingTeam: restoredServing,
+        rotation: restoredRotation,
       };
     }
     case "reset":
@@ -242,7 +280,11 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
         ...s,
         rotation: ((s.rotation - 1 + e.direction + 6) % 6) + 1,
       };
+    case "setServingTeam":
+      return { ...s, servingTeam: e.team };
     case "nextSet":
+      // Por convenção mantemos quem servia. O treinador pode trocar manual-
+      // mente se a regra de competição alternar serviço entre sets.
       return {
         ...s,
         setNumber: Math.min(5, s.setNumber + 1),

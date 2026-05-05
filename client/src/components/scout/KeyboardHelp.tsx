@@ -323,11 +323,14 @@ export function KeyboardHelp({
                 </p>
               </div>
               <div>
-                <div className="font-semibold mb-1">Rotação</div>
+                <div className="font-semibold mb-1">Saque & rotação</div>
                 <p className="text-xs text-muted-foreground">
-                  Quando ganhas o serviço (side-out), avança a rotação no
-                  botão <strong>Rot.</strong> ao lado da pontuação. Não há
-                  rotação automática — fica em controlo do scoutador.
+                  O ícone de bola âmbar marca quem está a servir. Quando
+                  fazemos <strong>side-out</strong> (ganhamos o rally a
+                  receber), a rotação avança automaticamente +1 e o saque
+                  passa para nós. Se algo correr mal, podes corrigir
+                  manualmente: clica no ícone de bola para alterar o
+                  servidor, ou na seta de rotação ao lado de "Rot."
                 </p>
               </div>
               <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">

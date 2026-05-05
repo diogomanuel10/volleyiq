@@ -29,7 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Court } from "@/components/scout/Court";
+import { Court, type CourtPoint } from "@/components/scout/Court";
 import { ActionBar } from "@/components/scout/ActionBar";
 import { ResultBar } from "@/components/scout/ResultBar";
 import { ScorePanel } from "@/components/scout/ScorePanel";
@@ -200,13 +200,30 @@ function Scout({
   const [zoneToSide, setZoneToSide] = useState<"opponent" | "ours" | null>(
     null,
   );
+  // Posições precisas do toque (em coords SVG do Court). Não persistem.
+  const [zoneFromPoint, setZoneFromPoint] = useState<CourtPoint | null>(null);
+  const [zoneToPoint, setZoneToPoint] = useState<CourtPoint | null>(null);
 
   // Sincroniza o reducer com a preferência guardada quando esta muda.
   useEffect(() => {
     dispatch({ kind: "setMode", mode });
     setZoneFromSide(null);
     setZoneToSide(null);
+    setZoneFromPoint(null);
+    setZoneToPoint(null);
   }, [mode, dispatch]);
+
+  // Após registar o resultado, o reducer limpa zoneFrom/zoneTo e volta a
+  // "idle" — alinhamos o estado local (sides + pontos precisos) para o
+  // dot/seta desaparecerem com a animação de exit.
+  useEffect(() => {
+    if (state.step === "idle" && state.zoneFrom == null && state.zoneTo == null) {
+      setZoneFromSide(null);
+      setZoneToSide(null);
+      setZoneFromPoint(null);
+      setZoneToPoint(null);
+    }
+  }, [state.step, state.zoneFrom, state.zoneTo]);
 
   const matchQuery = useQuery({
     queryKey: ["matches", teamId],
@@ -473,19 +490,29 @@ function Scout({
           ? `Escolhe acção para #${selectedPlayer.number} ${selectedPlayer.firstName}`
           : "Escolhe o tipo de acção."
         : step === "zoneFrom"
-          ? "Toca onde a bola foi contactada (origem)."
+          ? "Toca no campo onde a bola foi contactada (origem)."
           : step === "zoneTo"
-            ? "Toca onde a bola caiu / chegou (destino)."
+            ? "Toca no campo no ponto exacto onde a bola caiu."
             : step === "zone"
-              ? "Escolhe a zona onde a bola caiu (ou salta o passo)."
+              ? "Toca no campo onde a bola caiu (ou salta o passo)."
               : "Regista o resultado da acção.";
 
-  function handleZoneFromSelect(zone: Zone, side: "opponent" | "ours") {
+  function handleZoneFromSelect(
+    zone: Zone,
+    side: "opponent" | "ours",
+    point: CourtPoint,
+  ) {
     setZoneFromSide(side);
+    setZoneFromPoint(point);
     dispatch({ kind: "selectZoneFrom", zone });
   }
-  function handleZoneToSelect(zone: Zone, side: "opponent" | "ours") {
+  function handleZoneToSelect(
+    zone: Zone,
+    side: "opponent" | "ours",
+    point: CourtPoint,
+  ) {
     setZoneToSide(side);
+    setZoneToPoint(point);
     if (mode === "complete") dispatch({ kind: "selectZoneTo", zone });
     else dispatch({ kind: "selectZone", zone });
   }
@@ -610,10 +637,14 @@ function Scout({
             awayScore={state.awayScore}
             setNumber={state.setNumber}
             rotation={state.rotation}
+            servingTeam={state.servingTeam}
             onAdjust={(side, delta) =>
               dispatch({ kind: "adjustScore", side, delta })
             }
             onRotate={(direction) => dispatch({ kind: "rotate", direction })}
+            onSetServingTeam={(team) =>
+              dispatch({ kind: "setServingTeam", team })
+            }
             onPrevSet={() => dispatch({ kind: "prevSet" })}
             onNextSet={() => dispatch({ kind: "nextSet" })}
           />
@@ -627,6 +658,8 @@ function Scout({
               selectedZoneFrom={state.zoneFrom}
               selectedZoneSide={zoneToSide}
               selectedZoneFromSide={zoneFromSide}
+              selectedPointFrom={zoneFromPoint}
+              selectedPointTo={zoneToPoint}
               pickTarget={
                 step === "zoneFrom"
                   ? "from"

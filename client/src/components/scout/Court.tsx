@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ZONES, type Zone } from "@shared/types";
 import { cn } from "@/lib/utils";
@@ -5,13 +6,24 @@ import type { Player } from "@shared/schema";
 
 type Half = "opponent" | "ours";
 
+/** Ponto SVG (em coordenadas do viewBox) de onde a bola caiu. */
+export interface CourtPoint {
+  x: number;
+  y: number;
+  side: Half;
+}
+
 export interface CourtProps {
   selectedZone?: Zone | null;
   selectedZoneFrom?: Zone | null;
   selectedZoneSide?: Half | null;
   selectedZoneFromSide?: Half | null;
-  onZoneSelect?: (z: Zone, side: Half) => void;
-  onZoneFromSelect?: (z: Zone, side: Half) => void;
+  /** Posição precisa onde o utilizador tocou (origem). */
+  selectedPointFrom?: CourtPoint | null;
+  /** Posição precisa onde a bola caiu (destino). */
+  selectedPointTo?: CourtPoint | null;
+  onZoneSelect?: (z: Zone, side: Half, point: CourtPoint) => void;
+  onZoneFromSelect?: (z: Zone, side: Half, point: CourtPoint) => void;
   pickTarget?: "from" | "to" | null;
   lineup?: (Player | null)[];
   selectedPlayerId?: string | null;
@@ -57,6 +69,51 @@ const ZONE_TO_CELL_OPP: Record<Zone, { col: number; row: number }> = {
   1: { col: 0, row: 2 },
 };
 
+// Inversos pré-computados: (col,row) → zone
+const CELL_TO_ZONE_OURS = invertMap(ZONE_TO_CELL_OURS);
+const CELL_TO_ZONE_OPP = invertMap(ZONE_TO_CELL_OPP);
+
+function invertMap(map: Record<Zone, { col: number; row: number }>) {
+  const out: Record<string, Zone> = {};
+  for (const [zStr, { col, row }] of Object.entries(map)) {
+    out[`${col}-${row}`] = Number(zStr) as Zone;
+  }
+  return out;
+}
+
+function clamp(v: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, v));
+}
+
+/** Converte um ponto SVG dentro de um meio-campo na zona DataVolley. */
+function pointToZone(x: number, y: number, side: Half): Zone {
+  const x0 = side === "opponent" ? MARGIN : MARGIN + HALF_W;
+  const y0 = MARGIN;
+  const col = clamp(Math.floor((x - x0) / CELL_W), 0, 2);
+  const row = clamp(Math.floor((y - y0) / CELL_H), 0, 2);
+  const map = side === "opponent" ? CELL_TO_ZONE_OPP : CELL_TO_ZONE_OURS;
+  return map[`${col}-${row}`];
+}
+
+function zoneCenter(z: Zone, side: Half) {
+  const x0 = side === "opponent" ? MARGIN : MARGIN + HALF_W;
+  const map = side === "opponent" ? ZONE_TO_CELL_OPP : ZONE_TO_CELL_OURS;
+  const { col, row } = map[z];
+  return {
+    cx: x0 + CELL_W * col + CELL_W / 2,
+    cy: MARGIN + CELL_H * row + CELL_H / 2,
+  };
+}
+
+/**
+ * Devolve a posição central de uma zona como `CourtPoint`. Útil para fallback
+ * quando o utilizador escolhe a zona por teclado (sem coordenadas precisas).
+ */
+export function zoneToPoint(z: Zone, side: Half): CourtPoint {
+  const { cx, cy } = zoneCenter(z, side);
+  return { x: cx, y: cy, side };
+}
+
 // Lado direito (NÓS), rede à esquerda
 // row 0 = linha de rede, row 2 = linha de fundo
 // A linha do meio (row 1) não tem jogadoras — só é usada para zonas de stats
@@ -69,21 +126,13 @@ const SLOT_POSITIONS: Array<{ col: 0 | 1 | 2; row: 0 | 1 | 2; pos: number }> = [
   { col: 2, row: 2, pos: 5 }, // Posição 5 — fundo direita (espelho pos 4 adversário)
 ];
 
-function zoneCenter(z: Zone, side: Half) {
-  const x0 = side === "opponent" ? MARGIN : MARGIN + HALF_W;
-  const map = side === "opponent" ? ZONE_TO_CELL_OPP : ZONE_TO_CELL_OURS;
-  const { col, row } = map[z];
-  return {
-    cx: x0 + CELL_W * col + CELL_W / 2,
-    cy: MARGIN + CELL_H * row + CELL_H / 2,
-  };
-}
-
 export function Court({
   selectedZone,
   selectedZoneFrom,
   selectedZoneSide,
   selectedZoneFromSide,
+  selectedPointFrom,
+  selectedPointTo,
   onZoneSelect,
   onZoneFromSelect,
   pickTarget,
@@ -95,29 +144,55 @@ export function Court({
   zonesDisabled,
   className,
 }: CourtProps) {
+  const svgRef = useRef<SVGSVGElement | null>(null);
   const rotatedLineup = lineup
-  ? SLOT_POSITIONS.map((slot) =>
-      lineup[(slot.pos - rotation + 6) % 6] ?? null
-    )
-  : null;
+    ? SLOT_POSITIONS.map((slot) =>
+        lineup[(slot.pos - rotation + 6) % 6] ?? null,
+      )
+    : null;
 
-  function handleZoneClick(z: Zone, side: Half) {
+  function handleHalfClick(e: React.MouseEvent<SVGRectElement>, side: Half) {
     if (zonesDisabled) return;
-    if (pickTarget === "from") onZoneFromSelect?.(z, side);
-    else onZoneSelect?.(z, side);
+    const svg = svgRef.current;
+    if (!svg) return;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return;
+    const pt = svg.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    const local = pt.matrixTransform(ctm.inverse());
+    const z = pointToZone(local.x, local.y, side);
+    if (!z) return;
+    const point: CourtPoint = { x: local.x, y: local.y, side };
+    if (pickTarget === "from") onZoneFromSelect?.(z, side, point);
+    else onZoneSelect?.(z, side, point);
   }
 
+  // Pontos a desenhar — preferimos as coords precisas se existirem; senão
+  // caímos no centro da zona seleccionada (compatibilidade com selecção
+  // por teclado ou estados antigos).
+  const fromPoint =
+    selectedPointFrom ??
+    (selectedZoneFrom != null && selectedZoneFromSide
+      ? zoneToPoint(selectedZoneFrom, selectedZoneFromSide)
+      : null);
+  const toPoint =
+    selectedPointTo ??
+    (selectedZone != null && selectedZoneSide
+      ? zoneToPoint(selectedZone, selectedZoneSide)
+      : null);
+
   const trajectory =
-    selectedZoneFrom != null && selectedZoneFromSide &&
-    selectedZone != null && selectedZoneSide
+    fromPoint && toPoint
       ? {
-          from: zoneCenter(selectedZoneFrom, selectedZoneFromSide),
-          to: zoneCenter(selectedZone, selectedZoneSide),
+          from: { cx: fromPoint.x, cy: fromPoint.y },
+          to: { cx: toPoint.x, cy: toPoint.y },
         }
       : null;
 
   return (
     <svg
+      ref={svgRef}
       viewBox={`0 0 ${W} ${H}`}
       className={cn("w-full h-auto select-none", className)}
       aria-label="Campo de voleibol"
@@ -126,8 +201,10 @@ export function Court({
         <marker
           id="arrowhead"
           viewBox="0 0 10 10"
-          refX="8" refY="5"
-          markerWidth="6" markerHeight="6"
+          refX="8"
+          refY="5"
+          markerWidth="6"
+          markerHeight="6"
           orient="auto-start-reverse"
         >
           <path d="M 0 0 L 10 5 L 0 10 z" fill="hsl(var(--primary))" />
@@ -145,28 +222,34 @@ export function Court({
         selectedZoneFrom={selectedZoneFrom}
         selectedZoneFromSide={selectedZoneFromSide}
         disabled={!!zonesDisabled}
-        onZoneClick={handleZoneClick}
+        onHalfClick={handleHalfClick}
       />
 
       {/* Rede — duas linhas paralelas evocando a malha, com vinheta central */}
-      <g>
+      <g pointerEvents="none">
         <line
-          x1={MARGIN + HALF_W - 2} x2={MARGIN + HALF_W - 2}
-          y1={MARGIN - 6} y2={H - MARGIN + 6}
+          x1={MARGIN + HALF_W - 2}
+          x2={MARGIN + HALF_W - 2}
+          y1={MARGIN - 6}
+          y2={H - MARGIN + 6}
           stroke="hsl(var(--court-line))"
           strokeWidth={2}
           strokeOpacity={0.7}
         />
         <line
-          x1={MARGIN + HALF_W + 2} x2={MARGIN + HALF_W + 2}
-          y1={MARGIN - 6} y2={H - MARGIN + 6}
+          x1={MARGIN + HALF_W + 2}
+          x2={MARGIN + HALF_W + 2}
+          y1={MARGIN - 6}
+          y2={H - MARGIN + 6}
           stroke="hsl(var(--court-line))"
           strokeWidth={2}
           strokeOpacity={0.7}
         />
         <line
-          x1={MARGIN + HALF_W} x2={MARGIN + HALF_W}
-          y1={MARGIN - 6} y2={H - MARGIN + 6}
+          x1={MARGIN + HALF_W}
+          x2={MARGIN + HALF_W}
+          y1={MARGIN - 6}
+          y2={H - MARGIN + 6}
           stroke="hsl(var(--court-line))"
           strokeWidth={1}
           strokeDasharray="2 3"
@@ -179,6 +262,7 @@ export function Court({
         textAnchor="middle"
         className="fill-muted-foreground text-[9px] font-semibold tracking-widest"
         transform={`rotate(-90, ${MARGIN + HALF_W}, ${H / 2})`}
+        pointerEvents="none"
       >
         REDE
       </text>
@@ -191,7 +275,7 @@ export function Court({
         selectedZoneFrom={selectedZoneFrom}
         selectedZoneFromSide={selectedZoneFromSide}
         disabled={!!zonesDisabled}
-        onZoneClick={handleZoneClick}
+        onHalfClick={handleHalfClick}
       />
 
       {/* Jogadoras */}
@@ -201,6 +285,26 @@ export function Court({
         onPlayerSelect={onPlayerSelect}
         disabled={!!playersDisabled}
       />
+
+      {/* Marcadores precisos (origem + destino) */}
+      <AnimatePresence>
+        {fromPoint && (
+          <PointMarker
+            key="from"
+            cx={fromPoint.x}
+            cy={fromPoint.y}
+            color="amber"
+          />
+        )}
+        {toPoint && (
+          <PointMarker
+            key="to"
+            cx={toPoint.x}
+            cy={toPoint.y}
+            color="primary"
+          />
+        )}
+      </AnimatePresence>
 
       {/* Seta de trajectória */}
       {trajectory && (
@@ -218,7 +322,7 @@ function ZoneGrid({
   selectedZoneFrom,
   selectedZoneFromSide,
   disabled,
-  onZoneClick,
+  onHalfClick,
 }: {
   side: Half;
   selectedZone?: Zone | null;
@@ -226,7 +330,7 @@ function ZoneGrid({
   selectedZoneFrom?: Zone | null;
   selectedZoneFromSide?: Half | null;
   disabled: boolean;
-  onZoneClick: (z: Zone, side: Half) => void;
+  onHalfClick: (e: React.MouseEvent<SVGRectElement>, side: Half) => void;
 }) {
   const x0 = side === "opponent" ? MARGIN : MARGIN + HALF_W;
   const y0 = MARGIN;
@@ -234,63 +338,31 @@ function ZoneGrid({
 
   return (
     <g>
-      {/* Outline */}
-      <rect
-        x={x0} y={y0}
-        width={HALF_W} height={COURT_H}
-        className={cn(
-          side === "opponent" ? "fill-sky-500/5" : "fill-primary/5",
-          "stroke-[hsl(var(--court-line))]",
-        )}
-        strokeWidth={2}
-      />
-      {/* Linha de ataque */}
-      <line
-        x1={side === "opponent" ? x0 + HALF_W - CELL_W : x0 + CELL_W}
-        x2={side === "opponent" ? x0 + HALF_W - CELL_W : x0 + CELL_W}
-        y1={y0} y2={y0 + COURT_H}
-        stroke="hsl(var(--court-line))"
-        strokeDasharray="4 3"
-        strokeOpacity={0.5}
-      />
-      {/* Label */}
-      <text
-        x={side === "opponent" ? x0 + 8 : x0 + HALF_W - 8}
-        y={y0 + 14}
-        textAnchor={side === "opponent" ? "start" : "end"}
-        className="fill-muted-foreground text-[10px]"
-      >
-        {side === "opponent" ? "ADVERSÁRIO" : "NÓS"}
-      </text>
-
+      {/* Linhas internas de zona (decorativas) */}
       {ZONES.map((z) => {
         const { col, row } = map[z];
         const cx = x0 + CELL_W * col;
         const cy = y0 + CELL_H * row;
         const isTo = selectedZone === z && selectedZoneSide === side;
         const isFrom = selectedZoneFrom === z && selectedZoneFromSide === side;
-
         return (
-          <g key={`${side}-${z}`}>
+          <g key={`${side}-${z}`} pointerEvents="none">
             <motion.rect
-              x={cx} y={cy}
-              width={CELL_W} height={CELL_H}
+              x={cx}
+              y={cy}
+              width={CELL_W}
+              height={CELL_H}
               rx={4}
               className={cn(
-                isTo ? "fill-primary/25"
-                  : isFrom ? "fill-amber-500/30"
-                  : disabled
-                    ? side === "opponent" ? "fill-sky-500/5" : "fill-primary/5"
-                    : side === "opponent"
-                      ? "fill-sky-500/10 hover:fill-sky-500/20 cursor-pointer"
-                      : "fill-primary/10 hover:fill-primary/20 cursor-pointer",
+                isTo
+                  ? "fill-primary/20"
+                  : isFrom
+                    ? "fill-amber-500/25"
+                    : "fill-transparent",
               )}
               stroke="hsl(var(--court-line))"
-              strokeOpacity={0.35}
+              strokeOpacity={0.25}
               strokeWidth={1}
-              onClick={() => !disabled && onZoneClick(z, side)}
-              whileTap={!disabled ? { scale: 0.96 } : undefined}
-              style={{ transformOrigin: `${cx + CELL_W / 2}px ${cy + CELL_H / 2}px` }}
             />
             <text
               x={cx + CELL_W / 2}
@@ -299,33 +371,103 @@ function ZoneGrid({
               className={cn(
                 "font-bold pointer-events-none transition-all",
                 isTo
-                  ? "text-[20px] fill-primary"
+                  ? "text-[18px] fill-primary"
                   : isFrom
-                    ? "text-[20px] fill-amber-600"
+                    ? "text-[18px] fill-amber-600"
                     : disabled
-                      ? "text-[14px] fill-foreground/30"
-                      : "text-[18px] fill-foreground/55",
+                      ? "text-[12px] fill-foreground/20"
+                      : "text-[14px] fill-foreground/35",
               )}
             >
               {z}
             </text>
-            <AnimatePresence>
-              {(isTo || isFrom) && (
-                <motion.circle
-                  cx={cx + CELL_W / 2}
-                  cy={cy + CELL_H / 2}
-                  initial={{ r: 0, opacity: 0.6 }}
-                  animate={{ r: Math.min(CELL_W, CELL_H) / 2, opacity: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.6, ease: "easeOut" }}
-                  fill={isTo ? "hsl(var(--primary))" : "rgb(245 158 11)"}
-                  pointerEvents="none"
-                />
-              )}
-            </AnimatePresence>
           </g>
         );
       })}
+
+      {/* Outline + área clicável (única — toda a metade reage ao toque) */}
+      <rect
+        x={x0}
+        y={y0}
+        width={HALF_W}
+        height={COURT_H}
+        rx={2}
+        className={cn(
+          side === "opponent"
+            ? "fill-sky-500/[0.06]"
+            : "fill-primary/[0.06]",
+          "stroke-[hsl(var(--court-line))]",
+          !disabled &&
+            (side === "opponent"
+              ? "hover:fill-sky-500/15 cursor-crosshair"
+              : "hover:fill-primary/15 cursor-crosshair"),
+          disabled && "pointer-events-none",
+        )}
+        strokeWidth={2}
+        onClick={(e) => onHalfClick(e, side)}
+      />
+
+      {/* Linha de ataque */}
+      <line
+        x1={side === "opponent" ? x0 + HALF_W - CELL_W : x0 + CELL_W}
+        x2={side === "opponent" ? x0 + HALF_W - CELL_W : x0 + CELL_W}
+        y1={y0}
+        y2={y0 + COURT_H}
+        stroke="hsl(var(--court-line))"
+        strokeDasharray="4 3"
+        strokeOpacity={0.5}
+        pointerEvents="none"
+      />
+
+      {/* Label */}
+      <text
+        x={side === "opponent" ? x0 + 8 : x0 + HALF_W - 8}
+        y={y0 + 14}
+        textAnchor={side === "opponent" ? "start" : "end"}
+        className="fill-muted-foreground text-[10px]"
+        pointerEvents="none"
+      >
+        {side === "opponent" ? "ADVERSÁRIO" : "NÓS"}
+      </text>
+    </g>
+  );
+}
+
+// ── Marcador de ponto preciso ────────────────────────────────────────────
+function PointMarker({
+  cx,
+  cy,
+  color,
+}: {
+  cx: number;
+  cy: number;
+  color: "primary" | "amber";
+}) {
+  const fill =
+    color === "primary" ? "hsl(var(--primary))" : "rgb(245 158 11)";
+  return (
+    <g pointerEvents="none">
+      <motion.circle
+        cx={cx}
+        cy={cy}
+        initial={{ r: 0, opacity: 0.7 }}
+        animate={{ r: 18, opacity: 0 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.7, ease: "easeOut" }}
+        fill={fill}
+      />
+      <motion.circle
+        cx={cx}
+        cy={cy}
+        r={6}
+        fill={fill}
+        stroke="white"
+        strokeWidth={2}
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        exit={{ scale: 0, opacity: 0 }}
+        transition={{ type: "spring", stiffness: 400, damping: 20 }}
+      />
     </g>
   );
 }
@@ -358,6 +500,7 @@ function TrajectoryArrow({
       initial={{ pathLength: 0, opacity: 0 }}
       animate={{ pathLength: 1, opacity: 1 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
+      pointerEvents="none"
     />
   );
 }
@@ -389,7 +532,11 @@ function OurPlayers({
         return (
           <g
             key={idx}
-            onClick={() => clickable && onPlayerSelect?.(player!.id)}
+            onClick={(e) => {
+              if (!clickable) return;
+              e.stopPropagation();
+              onPlayerSelect?.(player!.id);
+            }}
             className={cn(
               clickable ? "cursor-pointer" : "",
               !player && "opacity-40",
@@ -398,7 +545,9 @@ function OurPlayers({
             style={disabled ? { opacity: 0.65 } : undefined}
           >
             <motion.circle
-              cx={cx} cy={cy} r={22}
+              cx={cx}
+              cy={cy}
+              r={22}
               className={cn(
                 "stroke-[hsl(var(--court-line))]",
                 isSelected ? "fill-primary" : "fill-background",
@@ -409,7 +558,8 @@ function OurPlayers({
               transition={{ duration: 0.25 }}
             />
             <text
-              x={cx} y={cy - 4}
+              x={cx}
+              y={cy - 4}
               textAnchor="middle"
               className={cn(
                 "text-[13px] font-bold pointer-events-none",
@@ -419,11 +569,14 @@ function OurPlayers({
               {player ? `#${player.number}` : "—"}
             </text>
             <text
-              x={cx} y={cy + 9}
+              x={cx}
+              y={cy + 9}
               textAnchor="middle"
               className={cn(
                 "text-[8px] pointer-events-none",
-                isSelected ? "fill-primary-foreground/90" : "fill-muted-foreground",
+                isSelected
+                  ? "fill-primary-foreground/90"
+                  : "fill-muted-foreground",
               )}
             >
               {player ? player.position : `P${slot.pos}`}

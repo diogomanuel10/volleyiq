@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Minus, Plus, RotateCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Minus, Plus, RotateCw, Volleyball } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -6,14 +6,19 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+
+type Side = "home" | "away";
 
 export function ScorePanel({
   homeScore,
   awayScore,
   setNumber,
   rotation,
+  servingTeam,
   onAdjust,
   onRotate,
+  onSetServingTeam,
   onPrevSet,
   onNextSet,
 }: {
@@ -21,8 +26,10 @@ export function ScorePanel({
   awayScore: number;
   setNumber: number;
   rotation: number;
-  onAdjust: (side: "home" | "away", delta: 1 | -1) => void;
+  servingTeam: Side;
+  onAdjust: (side: Side, delta: 1 | -1) => void;
   onRotate: (direction: 1 | -1) => void;
+  onSetServingTeam: (team: Side) => void;
   onPrevSet: () => void;
   onNextSet: () => void;
 }) {
@@ -48,8 +55,9 @@ export function ScorePanel({
               </Badge>
             </TooltipTrigger>
             <TooltipContent>
-              Posição do distribuidor: P{rotation}. Carrega na seta para
-              avançar quando ganhares o serviço (side-out).
+              Posição do distribuidor: P{rotation}. Avança automaticamente
+              em side-out (quando ganhamos o serviço); podes também forçar
+              com a seta.
             </TooltipContent>
           </Tooltip>
           <Button
@@ -69,6 +77,8 @@ export function ScorePanel({
           score={homeScore}
           onInc={() => onAdjust("home", 1)}
           onDec={() => onAdjust("home", -1)}
+          serving={servingTeam === "home"}
+          onClickServe={() => onSetServingTeam("home")}
           accent="primary"
         />
         <ScoreBlock
@@ -76,6 +86,8 @@ export function ScorePanel({
           score={awayScore}
           onInc={() => onAdjust("away", 1)}
           onDec={() => onAdjust("away", -1)}
+          serving={servingTeam === "away"}
+          onClickServe={() => onSetServingTeam("away")}
           accent="muted"
         />
       </div>
@@ -88,24 +100,54 @@ function ScoreBlock({
   score,
   onInc,
   onDec,
+  serving,
+  onClickServe,
   accent,
 }: {
   label: string;
   score: number;
   onInc: () => void;
   onDec: () => void;
+  serving: boolean;
+  onClickServe: () => void;
   accent: "primary" | "muted";
 }) {
   return (
     <div
-      className={
+      className={cn(
+        "relative rounded-lg p-3 transition-all",
         accent === "primary"
-          ? "rounded-lg border-2 border-primary/30 bg-primary/5 p-3"
-          : "rounded-lg border bg-muted/30 p-3"
-      }
+          ? "border-2 border-primary/30 bg-primary/5"
+          : "border bg-muted/30",
+        serving && "ring-2 ring-amber-500/70 ring-offset-1 ring-offset-background",
+      )}
     >
-      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-        {label}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] uppercase tracking-wide text-muted-foreground truncate">
+          {label}
+        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={onClickServe}
+              aria-label={serving ? "A servir" : "Marcar como serviço"}
+              className={cn(
+                "h-5 w-5 rounded-full flex items-center justify-center transition-colors",
+                serving
+                  ? "bg-amber-500 text-white"
+                  : "bg-muted text-muted-foreground hover:bg-amber-500/20",
+              )}
+            >
+              <Volleyball className="h-3 w-3" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {serving
+              ? "A servir actualmente"
+              : "Carrega para corrigir quem está a servir"}
+          </TooltipContent>
+        </Tooltip>
       </div>
       <div className="flex items-center justify-between mt-1">
         <Button variant="ghost" size="icon" onClick={onDec} aria-label="Menos">
