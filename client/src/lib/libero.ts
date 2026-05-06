@@ -1,0 +1,64 @@
+import type { Player } from "@shared/schema";
+import type { Side } from "@/hooks/useScoutState";
+
+/**
+ * Dado um lineup base (6 slots P1..P6), a rotação actual e os dois líberos,
+ * devolve os 6 slots *efectivos* em campo — com o líbero no lugar do central
+ * (MB) que está actualmente na linha de trás.
+ *
+ * Convenção de rotação (standard volleyball):
+ *   A posição de court P (1-based, DV) é ocupada pelo jogador em
+ *   baseSlots[(P - 1 + rotation - 1) % 6].
+ *
+ * Posições de trás (DV): 1 (back-direita), 5 (back-esquerda), 6 (back-centro).
+ *
+ * O líbero não faz parte dos 6 slots base — é um 7.º jogador separado.
+ */
+export function getEffectiveLineup(
+  baseSlots: (Player | null)[],            // índices 0-5 = P1..P6 guardados
+  rotation: number,                         // 1..6
+  servingTeam: Side,
+  allPlayersById: Map<string, Player>,
+  liberoReceptionId: string | null | undefined,
+  liberoDefenseId: string | null | undefined,
+): (Player | null)[] {
+  // Líbero activo depende de quem serve.
+  const liberoId = servingTeam === "away"
+    ? liberoReceptionId   // adversário serve → recebemos → líbero de receção
+    : liberoDefenseId;    // nós servimos → defesa → líbero de defesa
+
+  if (!liberoId) return [...baseSlots];
+
+  const libero = allPlayersById.get(liberoId);
+  if (!libero) return [...baseSlots];
+
+  // Offset 0-based da rotação actual.
+  const r = rotation - 1;
+
+  // Posições de trás no court (DV 1-based): 1, 5, 6.
+  const BACK_POSITIONS = [1, 5, 6] as const;
+
+  // Para cada posição de trás, verifica se o jogador lá é MB.
+  for (const courtPos of BACK_POSITIONS) {
+    const slotIdx = (courtPos - 1 + r) % 6;
+    const player = baseSlots[slotIdx];
+    if (player?.position === "MB") {
+      // Troca este MB pelo líbero.
+      const result = [...baseSlots];
+      result[slotIdx] = libero;
+      return result;
+    }
+  }
+
+  // Nenhum MB na linha de trás (p.ex. MB chegou à frente) — não troca.
+  return [...baseSlots];
+}
+
+/** Devolve o líbero activo para o contexto actual de serviço. */
+export function getActiveLiberoId(
+  servingTeam: Side,
+  liberoReceptionId: string | null | undefined,
+  liberoDefenseId: string | null | undefined,
+): string | null {
+  return (servingTeam === "away" ? liberoReceptionId : liberoDefenseId) ?? null;
+}

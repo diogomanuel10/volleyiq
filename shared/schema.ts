@@ -203,6 +203,10 @@ export const lineups = pgTable(
     p4: text("p4").references(() => players.id),
     p5: text("p5").references(() => players.id),
     p6: text("p6").references(() => players.id),
+    // Líbero de receção: entra quando o adversário serve (recebemos).
+    liberoReceptionId: text("libero_reception_id").references(() => players.id),
+    // Líbero de defesa: entra quando servimos (defendemos ataque adversário).
+    liberoDefenseId: text("libero_defense_id").references(() => players.id),
   },
   (t) => ({ byMatch: index("lineups_match_idx").on(t.matchId) }),
 );

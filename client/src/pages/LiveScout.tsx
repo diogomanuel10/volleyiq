@@ -54,6 +54,10 @@ import { WelcomeBanner } from "@/components/scout/WelcomeBanner";
 import { LastActionPill } from "@/components/scout/LastActionPill";
 import { StepProgress } from "@/components/scout/StepProgress";
 import {
+  getEffectiveLineup,
+  getActiveLiberoId,
+} from "@/lib/libero";
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -417,11 +421,10 @@ function Scout({
   );
 
   /**
-   * Lineup = se tivermos lineup guardado para este set, partimos dele e
-   * aplicamos as substituições por ordem de timestamp. Caso contrário,
-   * fallback para "primeiras 6 activas por número" (comportamento legacy).
+   * Lineup base = lineup guardado + substituições aplicadas (sem libero).
+   * Fallback: primeiras 6 activas por número.
    */
-  const lineup = useMemo<(Player | null)[]>(() => {
+  const baseLineup = useMemo<(Player | null)[]>(() => {
     const byId = new Map(activePlayers.map((p) => [p.id, p]));
     if (savedLineup) {
       const slots: (Player | null)[] = [
@@ -452,6 +455,32 @@ function Scout({
     for (let i = 0; i < 6 && i < sorted.length; i++) slots[i] = sorted[i];
     return slots;
   }, [activePlayers, savedLineup, subsQuery.data, state.setNumber]);
+
+  /**
+   * Lineup efectivo = baseLineup com o líbero correto no lugar do central de
+   * trás. Muda automaticamente com a rotação e com quem está a servir.
+   */
+  const lineup = useMemo<(Player | null)[]>(() => {
+    const byId = new Map(activePlayers.map((p) => [p.id, p]));
+    return getEffectiveLineup(
+      baseLineup,
+      state.rotation,
+      state.servingTeam,
+      byId,
+      savedLineup?.liberoReceptionId,
+      savedLineup?.liberoDefenseId,
+    );
+  }, [baseLineup, state.rotation, state.servingTeam, activePlayers, savedLineup]);
+
+  // Líbero actualmente activo (para mostrar badge).
+  const activeLiberoId = getActiveLiberoId(
+    state.servingTeam,
+    savedLineup?.liberoReceptionId,
+    savedLineup?.liberoDefenseId,
+  );
+  const activeLibero = activeLiberoId
+    ? activePlayers.find((p) => p.id === activeLiberoId) ?? null
+    : null;
 
   // Quem está em campo agora (jogadoras únicas no `lineup` 6-slot) e quem
   // está no banco (toda a roster activa que não está em campo).
@@ -707,6 +736,21 @@ function Scout({
             onPrevSet={() => dispatch({ kind: "prevSet" })}
             onNextSet={() => dispatch({ kind: "nextSet" })}
           />
+
+          {/* Líbero activo — badge automático */}
+          {activeLibero && (
+            <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/50 bg-amber-50 px-2.5 py-1 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                Líbero em campo: #{activeLibero.number} {activeLibero.firstName}{" "}
+                {activeLibero.lastName}
+                <span className="opacity-60">
+                  ·{" "}
+                  {state.servingTeam === "away" ? "receção" : "defesa"}
+                </span>
+              </span>
+            </div>
+          )}
 
           <div className="rounded-xl border bg-card p-3 md:p-4">
             <div className="mb-2">
