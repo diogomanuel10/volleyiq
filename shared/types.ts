@@ -10,23 +10,26 @@ export const ACTION_TYPES = [
   "attack",
   "block",
   "dig",
+  "freeball", // ponto rápido sem acção rastreada (erro adversário ou mérito adversário)
 ] as const;
 export type ActionType = (typeof ACTION_TYPES)[number];
 
 export type DvCode = "#" | "+" | "-" | "/" | "!" | "=";
 
 export const ACTION_RESULTS = [
-  "kill",       // ponto ganho em ataque
-  "error",      // erro próprio
-  "ace",        // serviço direto
-  "tooled",     // ataque que toca no bloco e sai
-  "in_play",    // bola continua
-  "perfect",    // passe/defesa perfeito (para reception/dig)
-  "good",       // passe/defesa bom
-  "poor",       // passe/defesa fraco
-  "blocked",    // ataque bloqueado pelo adversário
-  "stuff",      // bloco que pontua
-  "touch",      // bloco de toque / defesa com desvio
+  "kill",           // ponto ganho em ataque
+  "error",          // erro próprio
+  "ace",            // serviço direto
+  "tooled",         // ataque que toca no bloco e sai
+  "in_play",        // bola continua
+  "perfect",        // passe/defesa perfeito (para reception/dig)
+  "good",           // passe/defesa bom
+  "poor",           // passe/defesa fraco
+  "blocked",        // ataque bloqueado pelo adversário
+  "stuff",          // bloco que pontua
+  "touch",          // bloco de toque / defesa com desvio
+  "won",            // freeball: nós ganhámos o ponto (erro adversário)
+  "lost",           // freeball: adversário ganhou o ponto (mérito deles)
 ] as const;
 export type ActionResult = (typeof ACTION_RESULTS)[number];
 
@@ -78,6 +81,7 @@ export const RESULTS_BY_ACTION: Record<ActionType, readonly ActionResult[]> = {
   attack: ["kill", "error", "tooled", "blocked", "in_play"],
   block: ["stuff", "touch", "error", "in_play"],
   dig: ["perfect", "good", "poor", "error"],
+  freeball: ["won", "lost"],
 };
 
 /** Código DataVolley para cada (tipo de acção, resultado). */
@@ -142,6 +146,8 @@ export const RESULT_DV_CODE: Record<
     poor: "-",
     error: "=",
   },
+  // PONTO DIRETO (freeball) — sem código DV standard.
+  freeball: {},
 };
 
 export function getResultByDv(
@@ -176,6 +182,8 @@ export const RESULT_COLOR: Record<ActionResult, string> = {
   poor: "bg-amber-500 text-white hover:bg-amber-500/90",
   blocked: "bg-red-600 text-white hover:bg-red-600/90",
   error: "bg-red-600 text-white hover:bg-red-600/90",
+  won: "bg-emerald-600 text-white hover:bg-emerald-600/90",
+  lost: "bg-red-600 text-white hover:bg-red-600/90",
 };
 
 /** Label amigável (PT) de cada resultado. */
@@ -191,6 +199,8 @@ export const RESULT_LABEL: Record<ActionResult, string> = {
   blocked: "Bloqueado",
   stuff: "Stuff",
   touch: "Toque",
+  won: "Ponto ganho",
+  lost: "Ponto adversário",
 };
 
 export const ACTION_LABEL: Record<ActionType, string> = {
@@ -200,6 +210,7 @@ export const ACTION_LABEL: Record<ActionType, string> = {
   attack: "Ataque",
   block: "Bloco",
   dig: "Defesa",
+  freeball: "Ponto Direto",
 };
 
 export const PLANS = ["basic", "pro", "club"] as const;

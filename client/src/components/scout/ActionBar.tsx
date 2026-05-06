@@ -1,4 +1,4 @@
-import { Hand, ArrowDownToLine, Send, Shield, Target, Volleyball } from "lucide-react";
+import { Hand, ArrowDownToLine, Send, Shield, Target, Volleyball, Zap } from "lucide-react";
 import { ACTION_TYPES, ACTION_LABEL, type ActionType } from "@shared/types";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +9,7 @@ const ICON: Record<ActionType, React.ComponentType<{ className?: string }>> = {
   attack: Target,
   block: Shield,
   dig: Volleyball,
+  freeball: Zap, // não aparece na barra; só para satisfazer o tipo
 };
 
 const KEY_HINT: Record<ActionType, string> = {
@@ -18,7 +19,11 @@ const KEY_HINT: Record<ActionType, string> = {
   attack: "4",
   block: "5",
   dig: "6",
+  freeball: "",
 };
+
+// Tipos mostrados na barra — freeball é gerido pelos botões de ponto rápido.
+const BAR_TYPES = ACTION_TYPES.filter((t) => t !== "freeball");
 
 export function ActionBar({
   value,
@@ -34,7 +39,7 @@ export function ActionBar({
 }) {
   return (
     <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-      {ACTION_TYPES.map((t) => {
+      {BAR_TYPES.map((t) => {
         const Icon = ICON[t];
         const active = value === t;
         const hint = !active && suggested === t;

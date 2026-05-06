@@ -10,12 +10,11 @@ import {
   Trophy,
   ClipboardCheck,
   Sparkles,
-  PanelLeftClose,
-  PanelLeftOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebarCollapsed } from "@/lib/sidebar";
 import { TeamSwitcher } from "./TeamSwitcher";
+import { useRef, useState } from "react";
 
 const items = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard" },
@@ -32,30 +31,47 @@ const items = [
 
 export function Sidebar() {
   const [location] = useLocation();
-  const { collapsed, toggle } = useSidebarCollapsed();
+  const { collapsed } = useSidebarCollapsed();
+  const [hovered, setHovered] = useState(false);
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Expande se não estiver collapsed (pin) OU se estiver em hover
+  const expanded = !collapsed || hovered;
+
+  function handleMouseEnter() {
+    if (leaveTimer.current) clearTimeout(leaveTimer.current);
+    setHovered(true);
+  }
+
+  function handleMouseLeave() {
+    leaveTimer.current = setTimeout(() => setHovered(false), 120);
+  }
+
   return (
     <aside
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       className={cn(
-        "hidden md:flex shrink-0 flex-col border-r bg-card transition-[width] duration-200",
-        collapsed ? "w-16" : "w-60",
+        "hidden md:flex shrink-0 flex-col border-r bg-card transition-[width] duration-200 z-30",
+        expanded ? "w-60" : "w-16",
       )}
     >
       <div
         className={cn(
           "border-b space-y-3",
-          collapsed ? "p-2" : "p-4",
+          expanded ? "p-4" : "p-2",
         )}
       >
         <div
           className={cn(
             "flex items-center gap-2",
-            collapsed && "justify-center",
+            !expanded && "justify-center",
           )}
         >
           <div className="h-8 w-8 rounded-lg bg-primary text-primary-foreground grid place-items-center font-bold shrink-0">
             V
           </div>
-          {!collapsed && (
+          {expanded && (
             <div className="min-w-0 flex-1">
               <div className="font-semibold leading-tight">VolleyIQ</div>
               <div className="text-[11px] text-muted-foreground">
@@ -64,9 +80,9 @@ export function Sidebar() {
             </div>
           )}
         </div>
-        <TeamSwitcher collapsed={collapsed} />
+        <TeamSwitcher collapsed={!expanded} />
       </div>
-      <nav className={cn("flex-1 space-y-0.5", collapsed ? "p-1.5" : "p-2")}>
+      <nav className={cn("flex-1 space-y-0.5", expanded ? "p-2" : "p-1.5")}>
         {items.map((it) => {
           const active =
             it.href === "/"
@@ -76,10 +92,10 @@ export function Sidebar() {
             <Link
               key={it.href}
               href={it.href}
-              title={collapsed ? it.label : undefined}
+              title={!expanded ? it.label : undefined}
               className={cn(
                 "flex items-center rounded-md text-sm transition-colors",
-                collapsed
+                !expanded
                   ? "justify-center h-10 w-full"
                   : "gap-3 px-3 py-2",
                 active
@@ -88,36 +104,11 @@ export function Sidebar() {
               )}
             >
               <it.icon className="h-4 w-4 shrink-0" />
-              {!collapsed && <span className="truncate">{it.label}</span>}
+              {expanded && <span className="truncate">{it.label}</span>}
             </Link>
           );
         })}
       </nav>
-      <div
-        className={cn(
-          "border-t",
-          collapsed ? "p-1.5" : "p-2",
-        )}
-      >
-        <button
-          onClick={toggle}
-          title={collapsed ? "Expandir menu" : "Colapsar menu"}
-          aria-label={collapsed ? "Expandir menu" : "Colapsar menu"}
-          className={cn(
-            "flex items-center rounded-md text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors w-full",
-            collapsed ? "justify-center h-10" : "gap-3 px-3 py-2",
-          )}
-        >
-          {collapsed ? (
-            <PanelLeftOpen className="h-4 w-4 shrink-0" />
-          ) : (
-            <>
-              <PanelLeftClose className="h-4 w-4 shrink-0" />
-              <span>Colapsar</span>
-            </>
-          )}
-        </button>
-      </div>
     </aside>
   );
 }

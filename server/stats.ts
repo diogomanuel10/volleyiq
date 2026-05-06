@@ -871,6 +871,30 @@ export interface PlayerZoneBreakdown {
   killPct: number;
 }
 
+export interface MatchHistoryEntry {
+  matchId: string;
+  date: string;
+  opponent: string;
+  setsWon: number;
+  setsLost: number;
+  actions: number;
+  kills: number;
+  attackAttempts: number;
+  killPct: number;
+  attackEff: number;
+  passRating: number;
+  aces: number;
+  blocks: number;
+  digs: number;
+}
+
+export interface TrendEntry {
+  label: string;
+  killPct: number;
+  attackEff: number;
+  passRating: number;
+}
+
 export interface PlayerSummary {
   player: Player;
   actions: number;
@@ -880,11 +904,19 @@ export interface PlayerSummary {
   attackHeatmap: Heatmap;
   /** Heatmap por zona DV (1-9) — saques desta atleta. */
   serveHeatmap: Heatmap;
+  /** Heatmap por zona DV (1-9) — recepções desta atleta. */
+  receptionHeatmap: Heatmap;
   /** Pontos precisos para scatter — pelo menos uma das coords presente. */
   attackPoints: ScatterPoint[];
   servePoints: ScatterPoint[];
   /** Top 3 zonas favoritas de ataque (por volume) com kill% por zona. */
   topAttackZones: PlayerZoneBreakdown[];
+  /** Histórico jogo-a-jogo — últimos RECENT_LIMIT jogos em que participou. */
+  matchHistory: MatchHistoryEntry[];
+  /** Série temporal para gráfico de tendência — do mais antigo ao mais recente. */
+  trend: TrendEntry[];
+  /** KPIs médios da equipa nos mesmos jogos recentes, para comparação. */
+  teamKpis: TrainingRecommendationInput["kpis"];
 }
 
 export async function buildPlayerSummary(
@@ -899,7 +931,7 @@ export async function buildPlayerSummary(
 
   // Acções recentes em todos os jogos da equipa (últimos 6).
   const recentMatches = await db
-    .select({ id: matches.id })
+    .select()
     .from(matches)
     .where(eq(matches.teamId, teamId))
     .orderBy(desc(matches.date))
@@ -958,6 +990,7 @@ export async function buildPlayerSummary(
   // ── Heatmaps + scatter por atleta ───────────────────────────────────
   const attackHeatmap = buildHeatmap(recent, "attack");
   const serveHeatmap = buildHeatmap(recent, "serve");
+  const receptionHeatmap = buildHeatmap(recent, "reception");
 
   const attackPoints: ScatterPoint[] = attacks
     .filter((a) => a.zoneToX != null && a.zoneToY != null)
@@ -987,6 +1020,106 @@ export async function buildPlayerSummary(
       killPct: z.count > 0 ? round1(((z.kills ?? 0) / z.count) * 100) : 0,
     }));
 
+  // ── Histórico jogo-a-jogo ────────────────────────────────────────────
+  // Agrupa as acções desta atleta por jogo e calcula KPIs por jogo.
+  const sortedMatches = [...recentMatches].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+  );
+  const matchHistory: MatchHistoryEntry[] = sortedMatches
+    .map((m, i) => {
+      const mine = all.filter((a) => a.matchId === m.id);
+      if (!mine.length) return null;
+      const atks = mine.filter((a) => a.type === "attack");
+      const kls = atks.filter((a) => a.result === "kill").length;
+      const aErr = atks.filter(
+        (a) => a.result === "error" || a.result === "blocked",
+      ).length;
+      const recs = mine.filter((a) => a.type === "reception");
+      const recPts = recs.reduce((acc, a) => {
+        if (a.result === "perfect") return acc + 3;
+        if (a.result === "good") return acc + 2;
+        if (a.result === "poor") return acc + 1;
+        return acc;
+      }, 0);
+      const mServes = mine.filter((a) => a.type === "serve");
+      const mAces = mServes.filter((a) => a.result === "ace").length;
+      const mBlocks = mine.filter(
+        (a) => a.type === "block" && a.result === "stuff",
+      ).length;
+      const mDigs = mine.filter(
+        (a) =>
+          a.type === "dig" &&
+          (a.result === "perfect" || a.result === "good"),
+      ).length;
+      const kPct = atks.length ? (kls / atks.length) * 100 : 0;
+      const eff2 = atks.length ? (kls - aErr) / atks.length : 0;
+      const pRating = recs.length ? recPts / recs.length : 0;
+      return {
+        matchId: m.id,
+        date: m.date instanceof Date ? m.date.toISOString() : String(m.date),
+        opponent: m.opponent,
+        setsWon: m.setsWon,
+        setsLost: m.setsLost,
+        actions: mine.length,
+        kills: kls,
+        attackAttempts: atks.length,
+        killPct: round1(kPct),
+        attackEff: round3(eff2),
+        passRating: round2(pRating),
+        aces: mAces,
+        blocks: mBlocks,
+        digs: mDigs,
+        label: `J-${sortedMatches.length - i}`,
+      } as MatchHistoryEntry & { label: string };
+    })
+    .filter((x): x is MatchHistoryEntry & { label: string } => !!x);
+
+  // Trend: do mais antigo ao mais recente para o gráfico.
+  const trend: TrendEntry[] = matchHistory.map((h, i) => ({
+    label: `J-${matchHistory.length - i}`,
+    killPct: h.killPct,
+    attackEff: h.attackEff,
+    passRating: h.passRating,
+  }));
+
+  // ── KPIs médios da equipa (todos os jogadores, mesmos jogos recentes) ──
+  // Nota: usamos helpers locais para evitar shadowing das funções do módulo.
+  let teamAllActions: ActionRow[] = [];
+  if (matchIds.size > 0) {
+    teamAllActions = await db
+      .select()
+      .from(actions)
+      .where(inArray(actions.matchId, Array.from(matchIds)));
+  }
+  const tAtks = teamAllActions.filter((a) => a.type === "attack");
+  const tKills = tAtks.filter((a) => a.result === "kill").length;
+  const tAtkErr = tAtks.filter(
+    (a) => a.result === "error" || a.result === "blocked",
+  ).length;
+  const tRecs = teamAllActions.filter((a) => a.type === "reception");
+  const tRecPts = tRecs.reduce((acc, a) => {
+    if (a.result === "perfect") return acc + 3;
+    if (a.result === "good") return acc + 2;
+    if (a.result === "poor") return acc + 1;
+    return acc;
+  }, 0);
+  const tServes = teamAllActions.filter((a) => a.type === "serve");
+  const tAces = tServes.filter((a) => a.result === "ace").length;
+  const teamKpis = {
+    killPct: tAtks.length ? round1((tKills / tAtks.length) * 100) : 0,
+    attackEff: tAtks.length ? round3((tKills - tAtkErr) / tAtks.length) : 0,
+    passRating: tRecs.length ? round2(tRecPts / tRecs.length) : 0,
+    serveAcePct: tServes.length ? round1((tAces / tServes.length) * 100) : 0,
+    blocks: teamAllActions.filter(
+      (a) => a.type === "block" && a.result === "stuff",
+    ).length,
+    digs: teamAllActions.filter(
+      (a) =>
+        a.type === "dig" &&
+        (a.result === "perfect" || a.result === "good"),
+    ).length,
+  };
+
   return {
     player,
     actions: recent.length,
@@ -1001,9 +1134,13 @@ export async function buildPlayerSummary(
     weaknesses,
     attackHeatmap,
     serveHeatmap,
+    receptionHeatmap,
     attackPoints,
     servePoints,
     topAttackZones,
+    matchHistory,
+    trend,
+    teamKpis,
   };
 }
 

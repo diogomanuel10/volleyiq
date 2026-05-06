@@ -54,6 +54,10 @@ import { WelcomeBanner } from "@/components/scout/WelcomeBanner";
 import { LastActionPill } from "@/components/scout/LastActionPill";
 import { StepProgress } from "@/components/scout/StepProgress";
 import {
+  getEffectiveLineup,
+  getActiveLiberoId,
+} from "@/lib/libero";
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -237,11 +241,12 @@ function Scout({
   // Chave de persistência para este jogo.
   const sessionKey = `volleyiq:scout:${matchId}`;
 
-  // Hidrata o log a partir da API uma única vez.
+  // Hidrata o log + estado volátil a partir da API + localStorage.
   const hydratedRef = useRef(false);
   useEffect(() => {
     if (hydratedRef.current) return;
     if (!actionsQuery.data) return;
+
     const mapped: LoggedAction[] = actionsQuery.data.map((a) => ({
       id: a.id,
       playerId: a.playerId ?? "",
@@ -255,7 +260,7 @@ function Scout({
       result: a.result,
       rallyId: a.rallyId ?? "",
       rotation: a.rotation ?? 1,
-      setNumber: 1,
+      setNumber: a.rotation != null ? 1 : 1, // setNumber não existe na DB ainda
       timestamp: new Date(a.timestamp).getTime(),
     }));
 
@@ -422,11 +427,10 @@ function Scout({
   );
 
   /**
-   * Lineup = se tivermos lineup guardado para este set, partimos dele e
-   * aplicamos as substituições por ordem de timestamp. Caso contrário,
-   * fallback para "primeiras 6 activas por número" (comportamento legacy).
+   * Lineup base = lineup guardado + substituições aplicadas (sem libero).
+   * Fallback: primeiras 6 activas por número.
    */
-  const lineup = useMemo<(Player | null)[]>(() => {
+  const baseLineup = useMemo<(Player | null)[]>(() => {
     const byId = new Map(activePlayers.map((p) => [p.id, p]));
     if (savedLineup) {
       const slots: (Player | null)[] = [
@@ -457,6 +461,32 @@ function Scout({
     for (let i = 0; i < 6 && i < sorted.length; i++) slots[i] = sorted[i];
     return slots;
   }, [activePlayers, savedLineup, subsQuery.data, state.setNumber]);
+
+  /**
+   * Lineup efectivo = baseLineup com o líbero correto no lugar do central de
+   * trás. Muda automaticamente com a rotação e com quem está a servir.
+   */
+  const lineup = useMemo<(Player | null)[]>(() => {
+    const byId = new Map(activePlayers.map((p) => [p.id, p]));
+    return getEffectiveLineup(
+      baseLineup,
+      state.rotation,
+      state.servingTeam,
+      byId,
+      savedLineup?.liberoReceptionId,
+      savedLineup?.liberoDefenseId,
+    );
+  }, [baseLineup, state.rotation, state.servingTeam, activePlayers, savedLineup]);
+
+  // Líbero actualmente activo (para mostrar badge).
+  const activeLiberoId = getActiveLiberoId(
+    state.servingTeam,
+    savedLineup?.liberoReceptionId,
+    savedLineup?.liberoDefenseId,
+  );
+  const activeLibero = activeLiberoId
+    ? activePlayers.find((p) => p.id === activeLiberoId) ?? null
+    : null;
 
   // Quem está em campo agora (jogadoras únicas no `lineup` 6-slot) e quem
   // está no banco (toda a roster activa que não está em campo).
@@ -713,6 +743,21 @@ function Scout({
             onNextSet={() => dispatch({ kind: "nextSet" })}
           />
 
+          {/* Líbero activo — badge automático */}
+          {activeLibero && (
+            <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/50 bg-amber-50 px-2.5 py-1 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                Líbero em campo: #{activeLibero.number} {activeLibero.firstName}{" "}
+                {activeLibero.lastName}
+                <span className="opacity-60">
+                  ·{" "}
+                  {state.servingTeam === "away" ? "receção" : "defesa"}
+                </span>
+              </span>
+            </div>
+          )}
+
           <div className="rounded-xl border bg-card p-3 md:p-4">
             <div className="mb-2">
               <StepProgress steps={progressSteps} current={stepNumber - 1} />
@@ -762,15 +807,43 @@ function Scout({
           {/* Fluxo — aparece consoante o step actual */}
           <div className="space-y-2">
             {step === "idle" && (
-              <LastActionPill
-                last={lastLogged}
-                player={
-                  lastLogged
-                    ? activePlayers.find((p) => p.id === lastLogged.playerId) ??
-                      null
-                    : null
-                }
-              />
+              <>
+                <LastActionPill
+                  last={lastLogged}
+                  player={
+                    lastLogged
+                      ? activePlayers.find((p) => p.id === lastLogged.playerId) ??
+                        null
+                      : null
+                  }
+                />
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 border-emerald-500/40 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+                    onClick={() =>
+                      dispatch({ kind: "quickPoint", winner: "home" })
+                    }
+                    title="Nós marcámos por erro do adversário (sem acção registada)"
+                  >
+                    <span className="text-base leading-none mr-1">✓</span>
+                    Ponto nosso · erro deles
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 border-red-400/40 text-red-700 hover:bg-red-50 hover:border-red-400 dark:text-red-400 dark:hover:bg-red-950/30"
+                    onClick={() => {
+                      dispatch({ kind: "quickPoint", winner: "away" });
+                    }}
+                    title="Adversário marcou por mérito próprio (kill/ace que não foi erro nosso rastreado)"
+                  >
+                    <span className="text-base leading-none mr-1">✗</span>
+                    Ponto deles · mérito deles
+                  </Button>
+                </div>
+              </>
             )}
             {(step === "action" ||
               step === "zone" ||

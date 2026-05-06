@@ -21,21 +21,14 @@ interface Props {
   setNumber: number;
   rotation: number;
   roster: Player[];
-  /** Lineup já guardado para este set (se existir), para pré-popular. */
   existing: Lineup | null;
   onSaved: (lineup: Lineup) => void;
 }
 
 /**
- * Diálogo para definir o lineup inicial de um set: 6 jogadoras nas posições
- * P1–P6. Mostra um picker por posição com toda a roster activa.
- *
- * Volleyball convention recap (numeração das zonas):
- *   P4 P3 P2  ← linha da frente (junto à rede)
- *   P5 P6 P1  ← linha de trás (P1 é o serviço)
- *
- * O `rotation` parameter aqui é apenas metadata — a UI grava sempre os 6
- * slots e o reducer da scout state aplica a rotação em cima.
+ * Diálogo para definir o lineup inicial de um set: 6 jogadoras + 2 líberos
+ * (receção e defesa). O sistema aplica automaticamente a troca do líbero
+ * pelo central de trás consoante quem serve.
  */
 export function LineupWizard({
   open,
@@ -51,6 +44,7 @@ export function LineupWizard({
     () => [...roster].sort((a, b) => a.number - b.number),
     [roster],
   );
+
   const [slots, setSlots] = useState<Array<string | null>>(() => [
     existing?.p1 ?? null,
     existing?.p2 ?? null,
@@ -59,8 +53,13 @@ export function LineupWizard({
     existing?.p5 ?? null,
     existing?.p6 ?? null,
   ]);
+  const [liberoReception, setLiberoReception] = useState<string | null>(
+    () => existing?.liberoReceptionId ?? null,
+  );
+  const [liberoDefense, setLiberoDefense] = useState<string | null>(
+    () => existing?.liberoDefenseId ?? null,
+  );
 
-  // Quando abrir / mudar de set, sincroniza os slots com o existing.
   useEffect(() => {
     setSlots([
       existing?.p1 ?? null,
@@ -70,6 +69,8 @@ export function LineupWizard({
       existing?.p5 ?? null,
       existing?.p6 ?? null,
     ]);
+    setLiberoReception(existing?.liberoReceptionId ?? null);
+    setLiberoDefense(existing?.liberoDefenseId ?? null);
   }, [existing, setNumber]);
 
   const save = useMutation({
@@ -83,6 +84,8 @@ export function LineupWizard({
         p4: slots[3],
         p5: slots[4],
         p6: slots[5],
+        liberoReceptionId: liberoReception,
+        liberoDefenseId: liberoDefense,
       }),
     onSuccess: (l) => {
       toast.success(`Lineup do set ${setNumber} guardado`);
@@ -99,7 +102,6 @@ export function LineupWizard({
     setSlots((prev) => {
       const next = [...prev];
       next[i] = id;
-      // Se a mesma jogadora já estava noutro slot, esvazia esse slot.
       if (id) {
         for (let j = 0; j < 6; j++) {
           if (j !== i && next[j] === id) next[j] = null;
@@ -109,7 +111,11 @@ export function LineupWizard({
     });
   }
 
+  // Liberos não devem ser os mesmos nem estar nos 6 slots.
+  const slotIds = new Set(slots.filter(Boolean) as string[]);
+
   const filled = slots.filter(Boolean).length;
+
   const positions = [
     { idx: 0, label: "P1 — Serviço (back-direita)" },
     { idx: 1, label: "P2 — Frente-direita" },
@@ -119,14 +125,18 @@ export function LineupWizard({
     { idx: 5, label: "P6 — Back-centro" },
   ];
 
+  function playerOption(pl: Player) {
+    return `#${pl.number} ${pl.firstName} ${pl.lastName} · ${pl.position}`;
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Lineup inicial — Set {setNumber}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
             Escolhe as 6 jogadoras que arrancam este set. O serviço começa
             no P1.
@@ -141,14 +151,12 @@ export function LineupWizard({
                 <Select
                   id={`slot-${p.idx}`}
                   value={slots[p.idx] ?? ""}
-                  onChange={(e) =>
-                    setSlot(p.idx, e.target.value || null)
-                  }
+                  onChange={(e) => setSlot(p.idx, e.target.value || null)}
                 >
                   <option value="">— escolher —</option>
                   {sortedRoster.map((pl) => (
                     <option key={pl.id} value={pl.id}>
-                      #{pl.number} {pl.firstName} {pl.lastName} · {pl.position}
+                      {playerOption(pl)}
                     </option>
                   ))}
                 </Select>
@@ -157,8 +165,79 @@ export function LineupWizard({
           </div>
 
           <div className="text-xs text-muted-foreground">
-            {filled} / 6 jogadoras escolhidas
-            {filled === 6 ? " ✓" : ""}
+            {filled} / 6 jogadoras escolhidas{filled === 6 ? " ✓" : ""}
+          </div>
+
+          {/* ── Líberos ──────────────────────────────────────────── */}
+          <div className="border-t pt-4 space-y-3">
+            <div>
+              <p className="text-sm font-medium">Líberos (opcional)</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                O sistema troca automaticamente o central de trás pelo líbero
+                correto consoante quem serve. O líbero não conta nas 6 posições
+                base.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label htmlFor="libero-rec" className="text-xs">
+                  Líbero de receção
+                  <span className="ml-1 text-muted-foreground">
+                    (adversário serve)
+                  </span>
+                </Label>
+                <Select
+                  id="libero-rec"
+                  value={liberoReception ?? ""}
+                  onChange={(e) =>
+                    setLiberoReception(e.target.value || null)
+                  }
+                >
+                  <option value="">— nenhum —</option>
+                  {sortedRoster
+                    .filter(
+                      (pl) =>
+                        !slotIds.has(pl.id) ||
+                        pl.id === liberoReception,
+                    )
+                    .map((pl) => (
+                      <option key={pl.id} value={pl.id}>
+                        {playerOption(pl)}
+                      </option>
+                    ))}
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="libero-def" className="text-xs">
+                  Líbero de defesa
+                  <span className="ml-1 text-muted-foreground">
+                    (nós servimos)
+                  </span>
+                </Label>
+                <Select
+                  id="libero-def"
+                  value={liberoDefense ?? ""}
+                  onChange={(e) =>
+                    setLiberoDefense(e.target.value || null)
+                  }
+                >
+                  <option value="">— nenhum —</option>
+                  {sortedRoster
+                    .filter(
+                      (pl) =>
+                        !slotIds.has(pl.id) ||
+                        pl.id === liberoDefense,
+                    )
+                    .map((pl) => (
+                      <option key={pl.id} value={pl.id}>
+                        {playerOption(pl)}
+                      </option>
+                    ))}
+                </Select>
+              </div>
+            </div>
           </div>
         </div>
 
