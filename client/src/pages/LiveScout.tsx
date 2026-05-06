@@ -325,7 +325,7 @@ function Scout({
     mutationFn: (a: LoggedAction) =>
       api.post<DbAction>("/api/actions", {
         matchId,
-        playerId: a.playerId,
+        playerId: a.playerId || null,
         type: a.type,
         result: a.result,
         zoneFrom: a.zoneFrom,
@@ -757,15 +757,43 @@ function Scout({
           {/* Fluxo — aparece consoante o step actual */}
           <div className="space-y-2">
             {step === "idle" && (
-              <LastActionPill
-                last={lastLogged}
-                player={
-                  lastLogged
-                    ? activePlayers.find((p) => p.id === lastLogged.playerId) ??
-                      null
-                    : null
-                }
-              />
+              <>
+                <LastActionPill
+                  last={lastLogged}
+                  player={
+                    lastLogged
+                      ? activePlayers.find((p) => p.id === lastLogged.playerId) ??
+                        null
+                      : null
+                  }
+                />
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 border-emerald-500/40 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-500 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+                    onClick={() =>
+                      dispatch({ kind: "quickPoint", winner: "home" })
+                    }
+                    title="Nós marcámos por erro do adversário (sem acção registada)"
+                  >
+                    <span className="text-base leading-none mr-1">✓</span>
+                    Ponto nosso · erro deles
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 border-red-400/40 text-red-700 hover:bg-red-50 hover:border-red-400 dark:text-red-400 dark:hover:bg-red-950/30"
+                    onClick={() => {
+                      dispatch({ kind: "quickPoint", winner: "away" });
+                    }}
+                    title="Adversário marcou por mérito próprio (kill/ace que não foi erro nosso rastreado)"
+                  >
+                    <span className="text-base leading-none mr-1">✗</span>
+                    Ponto deles · mérito deles
+                  </Button>
+                </div>
+              </>
             )}
             {(step === "action" ||
               step === "zone" ||

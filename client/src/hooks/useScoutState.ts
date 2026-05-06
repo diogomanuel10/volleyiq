@@ -92,6 +92,7 @@ type ScoutEvent =
   | { kind: "nextSet" }
   | { kind: "prevSet" }
   | { kind: "hydrate"; actions: LoggedAction[] }
+  | { kind: "quickPoint"; winner: "home" | "away" }
   | {
       kind: "hydrateSession";
       actions: LoggedAction[];
@@ -128,6 +129,8 @@ const TERMINAL_RESULTS = new Set<ActionResult>([
   "ace",
   "blocked",
   "stuff",
+  "won",
+  "lost",
 ]);
 
 /**
@@ -242,10 +245,12 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
       const pointScored =
         (logged.type === "attack" && logged.result === "kill") ||
         (logged.type === "serve" && logged.result === "ace") ||
-        (logged.type === "block" && logged.result === "stuff");
+        (logged.type === "block" && logged.result === "stuff") ||
+        (logged.type === "freeball" && logged.result === "won");
       const pointLost =
         logged.result === "error" ||
-        (logged.type === "attack" && logged.result === "blocked");
+        (logged.type === "attack" && logged.result === "blocked") ||
+        (logged.type === "freeball" && logged.result === "lost");
 
       // ── Side-out + auto-rotação ─────────────────────────────────────
       // Se este resultado terminar o rally, descobrimos o vencedor e —
@@ -283,16 +288,58 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
         rotation: nextRotation,
       };
     }
+    case "quickPoint": {
+      // Regista um ponto sem acção rastreada de jogador:
+      //   winner === "home" → erro do adversário (nós marcamos)
+      //   winner === "away" → mérito do adversário (eles marcaram)
+      const isHome = e.winner === "home";
+      const qLogged: LoggedAction = {
+        id: nanoid(12),
+        playerId: "",
+        type: "freeball",
+        zoneFrom: null,
+        zoneTo: null,
+        zoneFromX: null,
+        zoneFromY: null,
+        zoneToX: null,
+        zoneToY: null,
+        result: isHome ? "won" : "lost",
+        rallyId: s.rallyId,
+        rotation: s.rotation,
+        setNumber: s.setNumber,
+        timestamp: Date.now(),
+        prevServingTeam: s.servingTeam,
+        prevRotation: s.rotation,
+      };
+      let nextServingTeam = s.servingTeam;
+      let nextRotation = s.rotation;
+      const qWinner: Side = isHome ? "home" : "away";
+      if (qWinner !== s.servingTeam) {
+        nextServingTeam = qWinner;
+        if (qWinner === "home") nextRotation = (s.rotation % 6) + 1;
+      }
+      return {
+        ...s,
+        log: [...s.log, qLogged],
+        rallyId: nanoid(8),
+        homeScore: isHome ? s.homeScore + 1 : s.homeScore,
+        awayScore: isHome ? s.awayScore : s.awayScore + 1,
+        servingTeam: nextServingTeam,
+        rotation: nextRotation,
+      };
+    }
     case "undo": {
       if (!s.log.length) return s;
       const last = s.log[s.log.length - 1];
       const pointScored =
         (last.type === "attack" && last.result === "kill") ||
         (last.type === "serve" && last.result === "ace") ||
-        (last.type === "block" && last.result === "stuff");
+        (last.type === "block" && last.result === "stuff") ||
+        (last.type === "freeball" && last.result === "won");
       const pointLost =
         last.result === "error" ||
-        (last.type === "attack" && last.result === "blocked");
+        (last.type === "attack" && last.result === "blocked") ||
+        (last.type === "freeball" && last.result === "lost");
       // Restaura saque/rotação a partir do snapshot guardado na acção.
       // Se faltarem (acção hidratada da API), best-effort: mantém actuais.
       const restoredServing = last.prevServingTeam ?? s.servingTeam;
