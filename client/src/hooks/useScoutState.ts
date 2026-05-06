@@ -264,7 +264,9 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
         if (winner !== s.servingTeam) {
           nextServingTeam = winner;
           if (winner === "home") {
-            nextRotation = (s.rotation % 6) + 1;
+            // Rotação volley = sentido horário: 1 → 6 → 5 → 4 → 3 → 2 → 1.
+            // Cada jogador desce uma posição (P2 → P1, P3 → P2, …, P1 → P6).
+            nextRotation = s.rotation === 1 ? 6 : s.rotation - 1;
           }
         }
       }
@@ -316,7 +318,10 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
       const qWinner: Side = isHome ? "home" : "away";
       if (qWinner !== s.servingTeam) {
         nextServingTeam = qWinner;
-        if (qWinner === "home") nextRotation = (s.rotation % 6) + 1;
+        if (qWinner === "home") {
+          // 1 → 6 → 5 → 4 → 3 → 2 → 1 (sentido horário).
+          nextRotation = s.rotation === 1 ? 6 : s.rotation - 1;
+        }
       }
       return {
         ...s,
@@ -377,9 +382,11 @@ function reducer(s: ScoutState, e: ScoutEvent): ScoutState {
             : s.awayScore,
       };
     case "rotate":
+      // direction=+1 → avança rotação (sentido volley: R diminui).
+      // direction=-1 → desfaz rotação (R aumenta).
       return {
         ...s,
-        rotation: ((s.rotation - 1 + e.direction + 6) % 6) + 1,
+        rotation: ((s.rotation - 1 - e.direction + 6) % 6) + 1,
       };
     case "setServingTeam":
       return { ...s, servingTeam: e.team };

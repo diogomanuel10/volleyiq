@@ -6,9 +6,13 @@ import type { Side } from "@/hooks/useScoutState";
  * devolve os 6 slots *efectivos* em campo — com o líbero no lugar do central
  * (MB) que está actualmente na linha de trás.
  *
- * Convenção de rotação (standard volleyball):
+ * Convenção de rotação (volley FIVB — sentido horário, R diminui):
+ *   Sequência: 1 → 6 → 5 → 4 → 3 → 2 → 1.
  *   A posição de court P (1-based, DV) é ocupada pelo jogador em
- *   baseSlots[(P - 1 + rotation - 1) % 6].
+ *   baseSlots[(P - rotation + 6) % 6].
+ *
+ *   Verificação: rotação 1, P=1 → slot[0] (P1 inicial). Após 1 rotação, R=6
+ *   e P=1 → slot[1] (era P2 — agora serve, está no fundo direito).
  *
  * Posições de trás (DV): 1 (back-direita), 5 (back-esquerda), 6 (back-centro).
  *
@@ -32,15 +36,13 @@ export function getEffectiveLineup(
   const libero = allPlayersById.get(liberoId);
   if (!libero) return [...baseSlots];
 
-  // Offset 0-based da rotação actual.
-  const r = rotation - 1;
-
   // Posições de trás no court (DV 1-based): 1, 5, 6.
   const BACK_POSITIONS = [1, 5, 6] as const;
 
   // Para cada posição de trás, verifica se o jogador lá é MB.
+  // Fórmula: courtPos P na rotação R → slot[(P - R + 6) % 6].
   for (const courtPos of BACK_POSITIONS) {
-    const slotIdx = (courtPos - 1 + r) % 6;
+    const slotIdx = (courtPos - rotation + 6) % 6;
     const player = baseSlots[slotIdx];
     if (player?.position === "MB") {
       // Troca este MB pelo líbero.
