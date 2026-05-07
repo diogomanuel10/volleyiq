@@ -781,7 +781,7 @@ function Scout({
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-3 md:gap-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
-        <div className="flex flex-col gap-3 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
+        <div className="flex flex-col gap-3 lg:min-h-0 lg:overflow-hidden">
           <ScorePanel
             homeScore={state.homeScore}
             awayScore={state.awayScore}
@@ -905,7 +905,21 @@ function Scout({
             )}
           </div>
 
-          <div className="rounded-xl border bg-card p-3 md:p-4">
+          {/* Lista de jogadores do adversário — acima do campo */}
+          {state.activeSide === "away" &&
+            state.scoutScope !== "home" &&
+            (step === "idle" || step === "player") && (
+            <OpponentPlayerGrid
+              players={opponentPlayers}
+              selectedId={state.opponentPlayerId}
+              onSelect={(id) =>
+                dispatch({ kind: "selectOpponentPlayer", opponentPlayerId: id })
+              }
+            />
+          )}
+
+          {/* Campo — ocupa todo o espaço restante; SVG escala para caber */}
+          <div className="rounded-xl border bg-card p-3 md:p-4 lg:flex-1 lg:min-h-0 lg:relative lg:p-0 lg:overflow-hidden">
             <Court
               selectedZone={state.zoneTo}
               selectedZoneFrom={state.zoneFrom}
@@ -943,21 +957,9 @@ function Scout({
               zonesDisabled={
                 step !== "zone" && step !== "zoneFrom" && step !== "zoneTo"
               }
+              className="lg:absolute lg:inset-0 lg:w-full lg:h-full"
             />
           </div>
-
-          {/* Lista de jogadores do adversário — visível quando activeSide=away */}
-          {state.activeSide === "away" &&
-            state.scoutScope !== "home" &&
-            (step === "idle" || step === "player") && (
-            <OpponentPlayerGrid
-              players={opponentPlayers}
-              selectedId={state.opponentPlayerId}
-              onSelect={(id) =>
-                dispatch({ kind: "selectOpponentPlayer", opponentPlayerId: id })
-              }
-            />
-          )}
         </div>
 
         {/* Sugestões + Log lateral + vídeo (opcional) */}
