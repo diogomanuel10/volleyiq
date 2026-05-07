@@ -675,7 +675,7 @@ function Scout({
 
   return (
     <TooltipProvider delayDuration={300}>
-    <div className="p-3 md:p-6 mx-auto space-y-3 md:space-y-4">
+    <div className="p-3 md:p-6 mx-auto flex flex-col gap-3 md:gap-4 lg:h-[100dvh] lg:overflow-hidden">
       {!welcomeDismissed && (
         <WelcomeBanner
           onOpenHelp={() => {
@@ -780,8 +780,8 @@ function Scout({
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-3 md:gap-4">
-        <div className="space-y-3">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-3 md:gap-4 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
+        <div className="flex flex-col gap-3 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
           <ScorePanel
             homeScore={state.homeScore}
             awayScore={state.awayScore}
@@ -961,14 +961,16 @@ function Scout({
         </div>
 
         {/* Sugestões + Log lateral + vídeo (opcional) */}
-        <aside className="space-y-3 min-w-0">
-          <SuggestionsPanel
-            suggestions={suggestions}
-            hasLog={state.log.length > 0}
-            hasHistory={Boolean(historyQuery.data)}
-          />
+        <aside className="flex flex-col gap-3 min-w-0 lg:min-h-0 lg:overflow-hidden">
+          <div className="lg:shrink-0">
+            <SuggestionsPanel
+              suggestions={suggestions}
+              hasLog={state.log.length > 0}
+              hasHistory={Boolean(historyQuery.data)}
+            />
+          </div>
           {match.videoUrl && (
-            <div className="rounded-xl border bg-card p-3 md:p-4 space-y-2">
+            <div className="rounded-xl border bg-card p-3 md:p-4 space-y-2 lg:shrink-0">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 <Video className="h-3.5 w-3.5" /> Vídeo
               </div>
@@ -979,7 +981,7 @@ function Scout({
               </p>
             </div>
           )}
-          <div className="rounded-xl border bg-card p-3 md:p-4 max-h-[60vh] lg:max-h-[70vh] min-h-[280px] flex flex-col">
+          <div className="rounded-xl border bg-card p-3 md:p-4 flex flex-col max-h-[55vh] lg:max-h-none lg:flex-1 lg:min-h-0">
             <ActionLog
               log={state.log}
               players={activePlayers}
