@@ -839,67 +839,13 @@ function Scout({
             />
           )}
 
-          <div className="rounded-xl border bg-card p-3 md:p-4">
-            <div className="mb-2">
-              <StepProgress steps={progressSteps} current={stepNumber - 1} />
-            </div>
-            <Court
-              selectedZone={state.zoneTo}
-              selectedZoneFrom={state.zoneFrom}
-              selectedZoneSide={zoneToSide}
-              selectedZoneFromSide={zoneFromSide}
-              selectedPointFrom={
-                state.zoneFromX != null && state.zoneFromY != null && zoneFromSide
-                  ? { x: state.zoneFromX, y: state.zoneFromY, side: zoneFromSide }
-                  : null
-              }
-              selectedPointTo={
-                state.zoneToX != null && state.zoneToY != null && zoneToSide
-                  ? { x: state.zoneToX, y: state.zoneToY, side: zoneToSide }
-                  : null
-              }
-              pickTarget={
-                step === "zoneFrom"
-                  ? "from"
-                  : step === "zoneTo" || step === "zone"
-                    ? "to"
-                    : null
-              }
-              onZoneSelect={handleZoneToSelect}
-              onZoneFromSelect={handleZoneFromSelect}
-              lineup={state.activeSide === "home" ? lineup : [null,null,null,null,null,null]}
-              selectedPlayerId={state.activeSide === "home" ? state.playerId : null}
-              onPlayerSelect={(id) =>
-                dispatch({ kind: "selectPlayer", playerId: id })
-              }
-              rotation={state.rotation}
-              playersDisabled={
-                state.activeSide === "away" ||
-                (step !== "idle" && step !== "player")
-              }
-              zonesDisabled={
-                step !== "zone" && step !== "zoneFrom" && step !== "zoneTo"
-              }
-            />
-            <p className="text-xs text-muted-foreground text-center mt-1">
-              {hint}
-            </p>
+          {/* Step progress + hint — sempre acima do campo */}
+          <div className="rounded-xl border bg-card px-3 py-2 space-y-1.5">
+            <StepProgress steps={progressSteps} current={stepNumber - 1} />
+            <p className="text-xs text-muted-foreground text-center">{hint}</p>
           </div>
 
-          {/* Lista de jogadores do adversário — visível quando activeSide=away */}
-          {state.activeSide === "away" &&
-            state.scoutScope !== "home" &&
-            (step === "idle" || step === "player") && (
-            <OpponentPlayerGrid
-              players={opponentPlayers}
-              selectedId={state.opponentPlayerId}
-              onSelect={(id) =>
-                dispatch({ kind: "selectOpponentPlayer", opponentPlayerId: id })
-              }
-            />
-          )}
-
-          {/* Fluxo — aparece consoante o step actual */}
+          {/* Fluxo de acção — sempre visível acima do campo, sem necessidade de scroll */}
           <div className="space-y-2">
             {step === "idle" && (
               <>
@@ -986,6 +932,60 @@ function Scout({
               </div>
             )}
           </div>
+
+          <div className="rounded-xl border bg-card p-3 md:p-4">
+            <Court
+              selectedZone={state.zoneTo}
+              selectedZoneFrom={state.zoneFrom}
+              selectedZoneSide={zoneToSide}
+              selectedZoneFromSide={zoneFromSide}
+              selectedPointFrom={
+                state.zoneFromX != null && state.zoneFromY != null && zoneFromSide
+                  ? { x: state.zoneFromX, y: state.zoneFromY, side: zoneFromSide }
+                  : null
+              }
+              selectedPointTo={
+                state.zoneToX != null && state.zoneToY != null && zoneToSide
+                  ? { x: state.zoneToX, y: state.zoneToY, side: zoneToSide }
+                  : null
+              }
+              pickTarget={
+                step === "zoneFrom"
+                  ? "from"
+                  : step === "zoneTo" || step === "zone"
+                    ? "to"
+                    : null
+              }
+              onZoneSelect={handleZoneToSelect}
+              onZoneFromSelect={handleZoneFromSelect}
+              lineup={state.activeSide === "home" ? lineup : [null,null,null,null,null,null]}
+              selectedPlayerId={state.activeSide === "home" ? state.playerId : null}
+              onPlayerSelect={(id) =>
+                dispatch({ kind: "selectPlayer", playerId: id })
+              }
+              rotation={state.rotation}
+              playersDisabled={
+                state.activeSide === "away" ||
+                (step !== "idle" && step !== "player")
+              }
+              zonesDisabled={
+                step !== "zone" && step !== "zoneFrom" && step !== "zoneTo"
+              }
+            />
+          </div>
+
+          {/* Lista de jogadores do adversário — visível quando activeSide=away */}
+          {state.activeSide === "away" &&
+            state.scoutScope !== "home" &&
+            (step === "idle" || step === "player") && (
+            <OpponentPlayerGrid
+              players={opponentPlayers}
+              selectedId={state.opponentPlayerId}
+              onSelect={(id) =>
+                dispatch({ kind: "selectOpponentPlayer", opponentPlayerId: id })
+              }
+            />
+          )}
         </div>
 
         {/* Sugestões + Log lateral + vídeo (opcional) */}
