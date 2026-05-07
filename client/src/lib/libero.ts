@@ -36,12 +36,14 @@ export function getEffectiveLineup(
   const libero = allPlayersById.get(liberoId);
   if (!libero) return [...baseSlots];
 
-  // Posições de trás onde o líbero pode substituir o central:
-  //   5 (back-esquerda), 6 (back-centro).
-  // P1 é excluída de propósito — quando a central está em P1 ela é a
-  // servidora e a líbero não pode servir (regra FIVB clássica). A central
-  // só sai (entra a líbero) quando roda de P1 → P6.
-  const BACK_POSITIONS = [5, 6] as const;
+  // Posições de trás onde o líbero pode substituir o central.
+  // P1 (back-direita) só é excluída quando NÓS servimos — o jogador em P1
+  // é o servidor e a líbero não pode servir (regra FIVB). Quando o adversário
+  // serve (receção), o MB em P1 está só a receber e a líbero entra normalmente.
+  const BACK_POSITIONS: readonly number[] =
+    servingTeam === "away"
+      ? [1, 5, 6]   // receção: líbero cobre os três back-row slots
+      : [5, 6];     // serviço: P1 serve, não pode ser substituída pela líbero
 
   // Para cada posição de trás, verifica se o jogador lá é MB.
   // Fórmula: courtPos P na rotação R → slot[(P - R + 6) % 6].
