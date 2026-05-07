@@ -546,6 +546,7 @@ function OurPlayers({
         const cx = x0 + CELL_W * slot.col + CELL_W / 2;
         const cy = y0 + CELL_H * slot.row + CELL_H / 2;
         const isSelected = !!(player && selectedPlayerId === player.id);
+        const isLibero = player?.position === "L";
         const clickable = !disabled && !!player;
 
         return (
@@ -568,10 +569,19 @@ function OurPlayers({
               cy={cy}
               r={22}
               className={cn(
-                "stroke-[hsl(var(--court-line))]",
-                isSelected ? "fill-primary" : "fill-background",
+                isSelected
+                  ? "fill-primary"
+                  : isLibero
+                    ? "fill-amber-50 dark:fill-amber-950/40"
+                    : "fill-background",
               )}
-              strokeWidth={2}
+              stroke={
+                isLibero
+                  ? "rgb(245 158 11)"
+                  : "hsl(var(--court-line))"
+              }
+              strokeWidth={isLibero ? 3 : 2}
+              strokeDasharray={isLibero ? "4 2" : undefined}
               whileTap={clickable ? { scale: 0.92 } : undefined}
               animate={isSelected ? { scale: [1, 1.06, 1] } : { scale: 1 }}
               transition={{ duration: 0.25 }}
@@ -582,7 +592,11 @@ function OurPlayers({
               textAnchor="middle"
               className={cn(
                 "text-[13px] font-bold pointer-events-none",
-                isSelected ? "fill-primary-foreground" : "fill-foreground",
+                isSelected
+                  ? "fill-primary-foreground"
+                  : isLibero
+                    ? "fill-amber-700 dark:fill-amber-400"
+                    : "fill-foreground",
               )}
             >
               {player ? `#${player.number}` : "—"}
@@ -592,10 +606,12 @@ function OurPlayers({
               y={cy + 9}
               textAnchor="middle"
               className={cn(
-                "text-[8px] pointer-events-none",
+                "text-[8px] pointer-events-none font-semibold",
                 isSelected
                   ? "fill-primary-foreground/90"
-                  : "fill-muted-foreground",
+                  : isLibero
+                    ? "fill-amber-700 dark:fill-amber-400"
+                    : "fill-muted-foreground",
               )}
             >
               {player ? player.position : `P${slot.pos}`}

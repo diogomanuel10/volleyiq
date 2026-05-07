@@ -61,10 +61,7 @@ import {
   buildSuggestions,
   type ScoutingHistory,
 } from "@/lib/suggestions";
-import {
-  getEffectiveLineup,
-  getActiveLiberoId,
-} from "@/lib/libero";
+import { getEffectiveLineup } from "@/lib/libero";
 import {
   Tooltip,
   TooltipContent,
@@ -540,16 +537,6 @@ function Scout({
     );
   }, [baseLineup, state.rotation, state.servingTeam, activePlayers, savedLineup]);
 
-  // Líbero actualmente activo (para mostrar badge).
-  const activeLiberoId = getActiveLiberoId(
-    state.servingTeam,
-    savedLineup?.liberoReceptionId,
-    savedLineup?.liberoDefenseId,
-  );
-  const activeLibero = activeLiberoId
-    ? activePlayers.find((p) => p.id === activeLiberoId) ?? null
-    : null;
-
   // Quem está em campo agora (jogadoras únicas no `lineup` 6-slot) e quem
   // está no banco (toda a roster activa que não está em campo).
   const onCourt = useMemo<Player[]>(() => {
@@ -811,21 +798,6 @@ function Scout({
             onPrevSet={() => dispatch({ kind: "prevSet" })}
             onNextSet={() => dispatch({ kind: "nextSet" })}
           />
-
-          {/* Líbero activo — badge automático */}
-          {activeLibero && (
-            <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/50 bg-amber-50 px-2.5 py-1 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                Líbero em campo: #{activeLibero.number} {activeLibero.firstName}{" "}
-                {activeLibero.lastName}
-                <span className="opacity-60">
-                  ·{" "}
-                  {state.servingTeam === "away" ? "receção" : "defesa"}
-                </span>
-              </span>
-            </div>
-          )}
 
           {/* Team toggle — visível em modo both/neutral */}
           {state.scoutScope !== "home" && (
