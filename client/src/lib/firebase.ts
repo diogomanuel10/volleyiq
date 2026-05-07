@@ -5,7 +5,8 @@ import {
   GoogleAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   type User,
 } from "firebase/auth";
@@ -88,7 +89,11 @@ export function subscribeAuth(cb: (user: AppUser | null) => void) {
   }
 
   getApp();
-  return onAuthStateChanged(getAuth(), cb);
+  const auth = getAuth();
+  // Processa qualquer redirect pendente do Google antes de escutar o estado.
+  // onAuthStateChanged dispara automaticamente com o utilizador após o redirect.
+  getRedirectResult(auth).catch(() => {});
+  return onAuthStateChanged(auth, cb);
 }
 
 export async function loginEmail(email: string, password: string) {
@@ -114,8 +119,10 @@ export async function loginGoogle() {
     return DEV_USER;
   }
   getApp();
-  const cred = await signInWithPopup(getAuth(), new GoogleAuthProvider());
-  return cred.user;
+  // signInWithRedirect é mais fiável que popup em produção (sem problemas de
+  // domínio não autorizado nem bloqueadores de popup). O browser redireciona
+  // para o Google e volta; getRedirectResult em subscribeAuth trata o resultado.
+  await signInWithRedirect(getAuth(), new GoogleAuthProvider());
 }
 
 export async function logout() {
