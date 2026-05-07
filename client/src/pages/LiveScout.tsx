@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   Crown,
   Keyboard,
+  Loader2,
   Monitor,
   Radio,
   Repeat,
@@ -374,14 +375,28 @@ function Scout({
       toast.error(err.message ?? "Falha a actualizar jogo"),
   });
 
-  // Quando muda o step para "idle" por causa de um selectResult, persistimos
-  // a última acção registada no log que ainda não tenha sido sincronizada.
+  // IDs que já foram enviados ao servidor (ou estão em voo).
+  // IDs pendentes (em voo ou aguardam retry) — expostos na UI.
   const syncedIds = useRef(new Set<string>());
+  const [pendingSync, setPendingSync] = useState(0);
+
   useEffect(() => {
     for (const a of state.log) {
       if (!syncedIds.current.has(a.id)) {
         syncedIds.current.add(a.id);
-        createAction.mutate(a);
+        setPendingSync((n) => n + 1);
+        createAction.mutate(a, {
+          onSuccess: () => setPendingSync((n) => Math.max(0, n - 1)),
+          onError: (err: any) => {
+            // Permite novo envio na próxima mutação.
+            syncedIds.current.delete(a.id);
+            setPendingSync((n) => Math.max(0, n - 1));
+            toast.error("Acção não guardada — verifica a ligação", {
+              description: err?.message,
+              action: { label: "OK", onClick: () => {} },
+            });
+          },
+        });
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1026,6 +1041,7 @@ function Scout({
               log={state.log}
               players={activePlayers}
               onUndo={handleKeyboardUndo}
+              pendingSync={pendingSync}
             />
           </div>
         </aside>

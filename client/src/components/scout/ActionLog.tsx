@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Undo2 } from "lucide-react";
+import { Loader2, Undo2 } from "lucide-react";
 import type { LoggedAction } from "@/hooks/useScoutState";
 import type { Player } from "@shared/schema";
 import {
@@ -14,10 +14,12 @@ export function ActionLog({
   log,
   players,
   onUndo,
+  pendingSync = 0,
 }: {
   log: LoggedAction[];
   players: Player[];
   onUndo: () => void;
+  pendingSync?: number;
 }) {
   const byId = new Map(players.map((p) => [p.id, p]));
   const recent = [...log].slice(-12).reverse();
@@ -25,8 +27,16 @@ export function ActionLog({
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between mb-2">
-        <div className="text-xs font-semibold tracking-wide uppercase text-muted-foreground">
-          Log ({log.length})
+        <div className="flex items-center gap-2">
+          <div className="text-xs font-semibold tracking-wide uppercase text-muted-foreground">
+            Log ({log.length})
+          </div>
+          {pendingSync > 0 && (
+            <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              a guardar…
+            </span>
+          )}
         </div>
         <Button
           variant="outline"

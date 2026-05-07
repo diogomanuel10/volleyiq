@@ -8,6 +8,32 @@ import { loginEmail, loginGoogle, registerEmail } from "@/lib/firebase";
 
 const DEV = import.meta.env.VITE_USE_DEV_AUTH === "true";
 
+function authErrorMessage(err: any): string {
+  switch (err?.code) {
+    case "auth/wrong-password":
+    case "auth/invalid-credential":
+      return "Palavra-passe incorrecta.";
+    case "auth/user-not-found":
+      return "Não existe conta com este email.";
+    case "auth/email-already-in-use":
+      return "Este email já está registado. Tenta entrar.";
+    case "auth/weak-password":
+      return "A palavra-passe precisa de pelo menos 6 caracteres.";
+    case "auth/invalid-email":
+      return "Endereço de email inválido.";
+    case "auth/too-many-requests":
+      return "Demasiadas tentativas. Aguarda uns minutos e tenta de novo.";
+    case "auth/network-request-failed":
+      return "Sem ligação à internet. Verifica a rede e tenta de novo.";
+    case "auth/popup-closed-by-user":
+      return "Janela do Google fechada antes de confirmar.";
+    case "auth/cancelled-popup-request":
+      return ""; // silencioso — utilizador abriu outra janela
+    default:
+      return err?.message ?? "Falha ao autenticar.";
+  }
+}
+
 export default function Login() {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
@@ -22,7 +48,8 @@ export default function Login() {
       else await registerEmail(email, password);
       window.location.reload();
     } catch (err: any) {
-      toast.error(err.message ?? "Falha ao autenticar");
+      const msg = authErrorMessage(err);
+      if (msg) toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -86,7 +113,8 @@ export default function Login() {
                 await loginGoogle();
                 window.location.reload();
               } catch (err: any) {
-                toast.error(err.message ?? "Falha Google");
+                const msg = authErrorMessage(err);
+                if (msg) toast.error(msg);
               }
             }}
           >
