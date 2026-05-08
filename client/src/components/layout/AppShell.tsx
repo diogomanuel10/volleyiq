@@ -5,7 +5,7 @@ import { MobileNav } from "./MobileNav";
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
-    <div className="flex h-full">
+    <div className="flex h-full overflow-x-hidden">
       <div className="print-hide contents">
         <Sidebar />
       </div>
@@ -13,7 +13,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="print-hide">
           <TopBar />
         </div>
-        <main className="flex-1 overflow-y-auto pb-16 md:pb-0 print-area">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden pb-16 md:pb-0 print-area">
           {children}
         </main>
         <div className="print-hide">

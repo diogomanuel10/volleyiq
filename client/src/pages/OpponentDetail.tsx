@@ -297,7 +297,7 @@ function RosterTab({
           </CardContent>
         </Card>
       ) : (
-        <div className="rounded-md border overflow-hidden">
+        <div className="rounded-md border overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
@@ -781,7 +781,7 @@ function HistoryTab({
         </span>
       </div>
 
-      <div className="rounded-md border overflow-hidden">
+      <div className="rounded-md border overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-muted">
             <tr>

@@ -20,7 +20,7 @@ export interface RotationRow {
  */
 export function RotationTable({ rows }: { rows: RotationRow[] }) {
   return (
-    <div className="rounded-md border overflow-hidden">
+    <div className="rounded-md border overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="bg-muted">
           <tr>

@@ -724,7 +724,7 @@ function Scout({
           onDismiss={dismissWelcome}
         />
       )}
-      <header className="flex items-center justify-between gap-3">
+      <header className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
           <Button variant="ghost" size="icon" onClick={onBack} aria-label="Voltar">
             <ArrowLeft className="h-4 w-4" />
@@ -738,7 +738,7 @@ function Scout({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 flex-wrap">
           <Tooltip>
             <TooltipTrigger asChild>
               <span>
@@ -801,9 +801,10 @@ function Scout({
           >
             <Keyboard className="h-4 w-4" />
           </Button>
-          <Button asChild size="sm" variant="ghost">
+          <Button asChild size="sm" variant="ghost" title="Segunda écran">
             <Link href={`/second-screen/${matchId}`}>
-              <Monitor className="h-4 w-4" /> Segunda écran
+              <Monitor className="h-4 w-4" />
+              <span className="hidden sm:inline ml-1">Segunda écran</span>
             </Link>
           </Button>
           {match.status !== "live" && (
