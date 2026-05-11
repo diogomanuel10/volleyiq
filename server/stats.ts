@@ -1144,6 +1144,75 @@ export async function buildPlayerSummary(
   };
 }
 
+// ── Agregados por jogadora para recomendações de substituição ────────────
+
+export interface PlayerAggregate {
+  playerId: string;
+  matchesPlayed: number;
+  attacks:    { total: number; kills: number; errors: number };
+  serves:     { total: number; aces: number; errors: number };
+  receptions: { total: number; perfect: number; good: number; poor: number; error: number };
+}
+
+export async function buildTeamPlayerAggregates(teamId: string): Promise<PlayerAggregate[]> {
+  const allMatches = await db
+    .select()
+    .from(matches)
+    .where(eq(matches.teamId, teamId));
+  if (!allMatches.length) return [];
+
+  const matchIds = allMatches.map((m) => m.id);
+  const all = await db
+    .select()
+    .from(actions)
+    .where(inArray(actions.matchId, matchIds));
+
+  const byPlayer = new Map<string, {
+    matchIds: Set<string>;
+    attacks: { total: number; kills: number; errors: number };
+    serves:  { total: number; aces: number; errors: number };
+    receptions: { total: number; perfect: number; good: number; poor: number; error: number };
+  }>();
+
+  for (const a of all) {
+    if (!a.playerId) continue;
+    let b = byPlayer.get(a.playerId);
+    if (!b) {
+      b = {
+        matchIds: new Set(),
+        attacks:    { total: 0, kills: 0, errors: 0 },
+        serves:     { total: 0, aces: 0, errors: 0 },
+        receptions: { total: 0, perfect: 0, good: 0, poor: 0, error: 0 },
+      };
+      byPlayer.set(a.playerId, b);
+    }
+    b.matchIds.add(a.matchId);
+    if (a.type === "attack") {
+      b.attacks.total++;
+      if (a.result === "kill") b.attacks.kills++;
+      if (a.result === "error" || a.result === "blocked") b.attacks.errors++;
+    } else if (a.type === "serve") {
+      b.serves.total++;
+      if (a.result === "ace") b.serves.aces++;
+      if (a.result === "error") b.serves.errors++;
+    } else if (a.type === "reception") {
+      b.receptions.total++;
+      if (a.result === "perfect") b.receptions.perfect++;
+      else if (a.result === "good") b.receptions.good++;
+      else if (a.result === "poor") b.receptions.poor++;
+      else b.receptions.error++;
+    }
+  }
+
+  return [...byPlayer.entries()].map(([playerId, b]) => ({
+    playerId,
+    matchesPlayed: b.matchIds.size,
+    attacks: b.attacks,
+    serves: b.serves,
+    receptions: b.receptions,
+  }));
+}
+
 function countBy<T>(arr: T[], key: (t: T) => string) {
   return arr.reduce<Record<string, number>>((acc, x) => {
     const k = key(x);

@@ -61,6 +61,7 @@ import { SuggestionsPanel } from "@/components/scout/SuggestionsPanel";
 import {
   buildSuggestions,
   type ScoutingHistory,
+  type PlayerAggregate,
 } from "@/lib/suggestions";
 import { getEffectiveLineup } from "@/lib/libero";
 import {
@@ -470,25 +471,6 @@ function Scout({
     staleTime: 5 * 60 * 1000,
   });
 
-  const suggestions = useMemo(
-    () =>
-      buildSuggestions({
-        log: state.log,
-        rotation: state.rotation,
-        servingTeam: state.servingTeam,
-        setNumber: state.setNumber,
-        players: activePlayers,
-        history: historyQuery.data ?? null,
-      }),
-    [
-      state.log,
-      state.rotation,
-      state.servingTeam,
-      state.setNumber,
-      activePlayers,
-      historyQuery.data,
-    ],
-  );
 
   const [lineupOpen, setLineupOpen] = useState(false);
   const [subOpen, setSubOpen] = useState(false);
@@ -569,6 +551,41 @@ function Scout({
     const onIds = new Set(onCourt.map((p) => p.id));
     return activePlayers.filter((p) => !onIds.has(p.id));
   }, [activePlayers, onCourt]);
+
+  // Agregados de época por jogadora — comparação para sugestões de substituição.
+  const playerAggregatesQuery = useQuery<PlayerAggregate[]>({
+    queryKey: ["playerAggregates", teamId],
+    queryFn: () =>
+      api.get<PlayerAggregate[]>(`/api/stats/team/${teamId}/player-aggregates`),
+    enabled: Boolean(teamId),
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const suggestions = useMemo(
+    () =>
+      buildSuggestions({
+        log: state.log,
+        rotation: state.rotation,
+        servingTeam: state.servingTeam,
+        setNumber: state.setNumber,
+        players: activePlayers,
+        history: historyQuery.data ?? null,
+        onCourt,
+        bench,
+        playerAggregates: playerAggregatesQuery.data ?? [],
+      }),
+    [
+      state.log,
+      state.rotation,
+      state.servingTeam,
+      state.setNumber,
+      activePlayers,
+      historyQuery.data,
+      onCourt,
+      bench,
+      playerAggregatesQuery.data,
+    ],
+  );
 
   const selectedPlayer = state.playerId
     ? activePlayers.find((p) => p.id === state.playerId) ?? null
