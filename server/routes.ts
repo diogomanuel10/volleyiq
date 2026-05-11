@@ -21,6 +21,7 @@ import {
   buildPlayerSummary,
   buildPostMatch,
   buildScoutingReport,
+  buildTeamPlayerAggregates,
 } from "./stats";
 import type { PatternDetectionInput } from "@shared/types";
 
@@ -33,7 +34,7 @@ router.get("/config", (_req, res) => {
   res.json({ mirror: mirrorStatus() });
 });
 
-// ── Teams ────────────────────────────────────────────────────────────────
+// ── Teams ──────────────────────────────────────────────────────────────────────────
 router.get("/teams", async (req, res) => {
   const list = await storage.listTeamsForUser(req.user!.uid);
   res.json(list);
@@ -120,7 +121,7 @@ async function requireSubstitutionAccess(req: any, res: any, next: any) {
   next();
 }
 
-// ── Players ──────────────────────────────────────────────────────────────
+// ── Players ──────────────────────────────────────────────────────────────────────────
 router.get("/players", requireTeamAccess, async (req: any, res) => {
   res.json(await storage.listPlayers(req.teamId));
 });
@@ -200,7 +201,7 @@ router.delete(
   },
 );
 
-// ── Matches ──────────────────────────────────────────────────────────────
+// ── Matches ──────────────────────────────────────────────────────────────────────────
 router.get("/matches", requireTeamAccess, async (req: any, res) => {
   res.json(await storage.listMatches(req.teamId));
 });
@@ -267,7 +268,7 @@ router.delete(
   },
 );
 
-// ── Actions (Live Scout) ─────────────────────────────────────────────────
+// ── Actions (Live Scout) ────────────────────────────────────────────────────────────
 router.get("/matches/:matchId/actions", requireMatchAccess, async (req, res) => {
   res.json(await storage.listActions(req.params.matchId));
 });
@@ -318,7 +319,7 @@ router.post("/actions/bulk", async (req, res) => {
   res.status(201).json({ inserted });
 });
 
-// ── Checklist ────────────────────────────────────────────────────────────
+// ── Checklist ──────────────────────────────────────────────────────────────────────────
 router.get("/matches/:matchId/checklist", requireMatchAccess, async (req, res) => {
   res.json(await storage.listChecklist(req.params.matchId));
 });
@@ -331,7 +332,7 @@ router.patch("/checklist/:id", requireChecklistAccess, async (req, res) => {
   res.status(204).end();
 });
 
-// ── AI Pattern Detection ─────────────────────────────────────────────────
+// ── AI Pattern Detection ───────────────────────────────────────────────────────────────────
 const patternsInputSchema = z.object({
   teamId: z.string(),
   opponent: z.string(),
@@ -342,13 +343,22 @@ const patternsInputSchema = z.object({
   setterDistribution: z.record(z.string(), z.number()),
 });
 
-// ── Dashboard stats ──────────────────────────────────────────────────────
+// ── Dashboard stats ──────────────────────────────────────────────────────────────────────────
 router.get(
   "/stats/team/:teamId/dashboard",
   requireTeamAccess,
   async (req: any, res) => {
     const stats = await buildDashboard(req.teamId);
     res.json(stats);
+  },
+);
+
+router.get(
+  "/stats/team/:teamId/player-aggregates",
+  requireTeamAccess,
+  async (req: any, res) => {
+    const data = await buildTeamPlayerAggregates(req.teamId);
+    res.json(data);
   },
 );
 
@@ -366,7 +376,7 @@ router.post("/ai/patterns", async (req, res) => {
   }
 });
 
-// ── Scouting report (opponent) ───────────────────────────────────────────
+// ── Scouting report (opponent) ───────────────────────────────────────────────────────────────
 router.get(
   "/scouting/:opponent",
   requireTeamAccess,
@@ -378,7 +388,7 @@ router.get(
   },
 );
 
-// ── Post-match summary ───────────────────────────────────────────────────
+// ── Post-match summary ──────────────────────────────────────────────────────────────────────────
 router.get(
   "/matches/:matchId/summary",
   requireTeamAccess,
@@ -389,7 +399,7 @@ router.get(
   },
 );
 
-// ── Player summary + training recommendations ───────────────────────────
+// ── Player summary + training recommendations ───────────────────────────────────────────────────
 router.get(
   "/players/:id/summary",
   requireTeamAccess,
@@ -440,7 +450,7 @@ router.post(
   },
 );
 
-// ── Opponent teams ──────────────────────────────────────────────────────
+// ── Opponent teams ──────────────────────────────────────────────────────────────────────────
 router.get("/opponents", requireTeamAccess, async (req: any, res) => {
   res.json(await storage.listOpponentTeams(req.teamId));
 });
@@ -500,7 +510,7 @@ router.delete(
   },
 );
 
-// ── Opponent players (roster) ───────────────────────────────────────────
+// ── Opponent players (roster) ───────────────────────────────────────────────────────────────────
 router.get(
   "/opponents/:id/players",
   requireOpponentAccess,
@@ -571,7 +581,7 @@ router.delete(
   },
 );
 
-// ── Opponent coaches ────────────────────────────────────────────────────
+// ── Opponent coaches ──────────────────────────────────────────────────────────────────────────
 router.get(
   "/opponents/:id/coaches",
   requireOpponentAccess,
@@ -619,7 +629,7 @@ router.delete(
   },
 );
 
-// ── Opponent history (matches vs this opponent) ─────────────────────────
+// ── Opponent history (matches vs this opponent) ──────────────────────────────────────────────────────
 router.get(
   "/opponents/:id/matches",
   requireOpponentAccess,
@@ -628,7 +638,7 @@ router.get(
   },
 );
 
-// ── Lineups ──────────────────────────────────────────────────────────────
+// ── Lineups ──────────────────────────────────────────────────────────────────────────
 router.get("/matches/:matchId/lineups", requireMatchAccess, async (req, res) => {
   res.json(await storage.listLineupsForMatch(req.params.matchId));
 });
@@ -646,7 +656,7 @@ router.post("/matches/:matchId/lineups", requireMatchAccess, async (req, res) =>
   res.status(201).json(row);
 });
 
-// ── Substitutions ────────────────────────────────────────────────────────
+// ── Substitutions ──────────────────────────────────────────────────────────────────────────
 router.get("/matches/:matchId/substitutions", requireMatchAccess, async (req, res) => {
   res.json(await storage.listSubstitutionsForMatch(req.params.matchId));
 });
