@@ -25,7 +25,7 @@ import {
  * nenhum endpoint devolve linhas de outra equipa.
  */
 
-// ── Users ↔ Teams (membership) ───────────────────────────────────────────
+// ── Users ↔ Teams (membership) ────────────────────────────────────────────
 export const teams = pgTable("teams", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -61,7 +61,7 @@ export const memberships = pgTable(
   }),
 );
 
-// ── Players ──────────────────────────────────────────────────────
+// ── Players ──────────────────────────────────────────────────────────────
 export const players = pgTable(
   "players",
   {
@@ -82,7 +82,7 @@ export const players = pgTable(
   (t) => ({ byTeam: index("players_team_idx").on(t.teamId) }),
 );
 
-// ── Opponent teams (catálogo de adversários de cada equipa) ──────────────────
+// ── Opponent teams (catálogo de adversários de cada equipa) ──────────────
 export const opponentTeams = pgTable(
   "opponent_teams",
   {
@@ -138,7 +138,7 @@ export const opponentCoaches = pgTable(
   (t) => ({ byOpponent: index("opponent_coaches_team_idx").on(t.opponentTeamId) }),
 );
 
-// ── Matches ──────────────────────────────────────────────────────
+// ── Matches ──────────────────────────────────────────────────────────────
 export const matches = pgTable(
   "matches",
   {
@@ -198,7 +198,7 @@ export const sets = pgTable(
   (t) => ({ byMatch: index("sets_match_idx").on(t.matchId) }),
 );
 
-// ── Lineups (p1..p6 por rotação inicial de cada set) ─────────────────────────
+// ── Lineups (p1..p6 por rotação inicial de cada set) ─────────────────────
 export const lineups = pgTable(
   "lineups",
   {
@@ -222,7 +222,7 @@ export const lineups = pgTable(
   (t) => ({ byMatch: index("lineups_match_idx").on(t.matchId) }),
 );
 
-// ── Substitutions (mudanças durante o set) ───────────────────────────────────
+// ── Substitutions (mudanças durante o set) ───────────────────────────────
 export const substitutions = pgTable(
   "substitutions",
   {
@@ -244,7 +244,7 @@ export const substitutions = pgTable(
   (t) => ({ byMatch: index("substitutions_match_idx").on(t.matchId) }),
 );
 
-// ── Actions (grão fino — ~500 linhas / jogo) ─────────────────────────────────
+// ── Actions (grão fino — ~500 linhas / jogo) ─────────────────────────────
 export const actions = pgTable(
   "actions",
   {
@@ -286,7 +286,7 @@ export const actions = pgTable(
   }),
 );
 
-// ── Match day checklist ────────────────────────────────────────────────────
+// ── Match day checklist ──────────────────────────────────────────────────
 export const checklistItems = pgTable(
   "checklist_items",
   {
@@ -302,7 +302,8 @@ export const checklistItems = pgTable(
   (t) => ({ byMatch: index("checklist_match_idx").on(t.matchId) }),
 );
 
-// ── Scouting reports (JSON de padrões gerado pela IA) ────────────────────────nexport const scoutingReports = pgTable(
+// ── Scouting reports (JSON de padrões gerado pela IA) ────────────────────
+export const scoutingReports = pgTable(
   "scouting_reports",
   {
     id: text("id").primaryKey(),
@@ -318,7 +319,7 @@ export const checklistItems = pgTable(
   (t) => ({ byTeam: index("reports_team_idx").on(t.teamId) }),
 );
 
-// ── Training logs (recomendações IA por atleta) ─────────────────────────────
+// ── Training logs (recomendações IA por atleta) ──────────────────────────
 export const trainingLogs = pgTable(
   "training_logs",
   {
@@ -340,7 +341,7 @@ export const trainingLogs = pgTable(
   (t) => ({ byPlayer: index("training_player_idx").on(t.playerId) }),
 );
 
-// ── Zod inserts + inferred select types ──────────────────────────────────────────
+// ── Zod inserts + inferred select types ──────────────────────────────────
 // Select types via `InferSelectModel` (Drizzle); insert schemas via drizzle-zod
 // para validação de payloads que chegam dos clients.
 

@@ -41,6 +41,14 @@ import {
 
 const newId = () => nanoid(12);
 
+// Código de convite: 6 chars maiúsculos sem ambiguidade (sem 0/O, 1/I).
+const INVITE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+function newInviteCode() {
+  return Array.from({ length: 6 }, () =>
+    INVITE_ALPHABET[Math.floor(Math.random() * INVITE_ALPHABET.length)],
+  ).join("");
+}
+
 // ── Teams ────────────────────────────────────────────────────────────────
 export async function listTeamsForUser(uid: string) {
   const rows = await db
@@ -53,7 +61,8 @@ export async function listTeamsForUser(uid: string) {
 
 export async function createTeam(uid: string, data: InsertTeam) {
   const id = newId();
-  await db.insert(teams).values({ ...data, id, ownerUid: uid });
+  const inviteCode = newInviteCode();
+  await db.insert(teams).values({ ...data, id, ownerUid: uid, inviteCode });
   await db.insert(memberships).values({
     id: newId(),
     teamId: id,
@@ -62,6 +71,50 @@ export async function createTeam(uid: string, data: InsertTeam) {
   });
   const [row] = await db.select().from(teams).where(eq(teams.id, id));
   return row!;
+}
+
+export async function getTeamByInviteCode(code: string) {
+  const [row] = await db
+    .select()
+    .from(teams)
+    .where(eq(teams.inviteCode, code.toUpperCase()));
+  return row ?? null;
+}
+
+export async function joinTeamByCode(uid: string, code: string) {
+  const team = await getTeamByInviteCode(code);
+  if (!team) return { error: "invalid_code" as const };
+  const already = await userBelongsToTeam(uid, team.id);
+  if (already) return { error: "already_member" as const };
+  await db.insert(memberships).values({
+    id: newId(),
+    teamId: team.id,
+    uid,
+    role: "coach",
+  });
+  return { team };
+}
+
+export async function regenerateInviteCode(teamId: string) {
+  const code = newInviteCode();
+  await db.update(teams).set({ inviteCode: code }).where(eq(teams.id, teamId));
+  return code;
+}
+
+export async function getTeamMembers(teamId: string) {
+  return db
+    .select()
+    .from(memberships)
+    .where(eq(memberships.teamId, teamId));
+}
+
+export async function getMemberRole(uid: string, teamId: string) {
+  const [row] = await db
+    .select()
+    .from(memberships)
+    .where(and(eq(memberships.uid, uid), eq(memberships.teamId, teamId)))
+    .limit(1);
+  return row?.role ?? null;
 }
 
 export async function userBelongsToTeam(uid: string, teamId: string) {

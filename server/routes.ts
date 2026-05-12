@@ -64,6 +64,42 @@ router.patch("/teams/:id/plan", async (req, res) => {
   res.json(team);
 });
 
+// Pré-visualiza a equipa associada a um código de convite (sem aderir).
+router.get("/teams/join/:code", async (req, res) => {
+  const team = await storage.getTeamByInviteCode(req.params.code);
+  if (!team) return res.status(404).json({ error: "invalid_code" });
+  res.json({ id: team.id, name: team.name, club: team.club, category: team.category });
+});
+
+// Adere à equipa com o código de convite.
+router.post("/teams/join", async (req, res) => {
+  const code = z.string().min(1).safeParse(req.body.code);
+  if (!code.success) return res.status(400).json({ error: "code required" });
+  const result = await storage.joinTeamByCode(req.user!.uid, code.data);
+  if ("error" in result) {
+    const status = result.error === "invalid_code" ? 404 : 409;
+    return res.status(status).json({ error: result.error });
+  }
+  res.status(201).json(result.team);
+});
+
+// Regenera o código de convite (só o owner).
+router.post("/teams/:id/regenerate-invite", async (req, res) => {
+  const role = await storage.getMemberRole(req.user!.uid, req.params.id);
+  if (!role) return res.status(403).json({ error: "forbidden" });
+  if (role !== "owner") return res.status(403).json({ error: "owner_only" });
+  const code = await storage.regenerateInviteCode(req.params.id);
+  res.json({ inviteCode: code });
+});
+
+// Lista membros da equipa.
+router.get("/teams/:id/members", async (req, res) => {
+  const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  const members = await storage.getTeamMembers(req.params.id);
+  res.json(members);
+});
+
 // Middleware para garantir que o utilizador pertence à equipa pedida.
 async function requireTeamAccess(req: any, res: any, next: any) {
   const teamId = (req.query.teamId ?? req.params.teamId) as string | undefined;
