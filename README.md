@@ -107,6 +107,11 @@ Abre `http://localhost:5173`. Para desenvolver sem Firebase, define
 | `npm run db:generate` | Gera nova migração a partir do schema |
 | `npm run db:seed` | Popula dados demo |
 
+## Manual do utilizador
+
+Treinadores e staff técnico: ver [`MANUAL.md`](./MANUAL.md) — guia
+passo a passo desde o primeiro login até à análise pós‑jogo.
+
 ## Deploy
 
 Configuração de produção e checklists em [`DEPLOY.md`](./DEPLOY.md).
