@@ -152,7 +152,7 @@ function MatchPicker({ teamId }: { teamId: string }) {
   );
 
   return (
-    <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-4">
+    <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-4">
       <header>
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
           Post-Match
@@ -236,7 +236,7 @@ function Summary({
 
   if (summaryQuery.isLoading) {
     return (
-      <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-4">
+      <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-4">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-48 w-full" />
         <Skeleton className="h-80 w-full" />
@@ -245,7 +245,7 @@ function Summary({
   }
   if (summaryQuery.isError || !summaryQuery.data) {
     return (
-      <div className="p-4 md:p-8 max-w-3xl mx-auto">
+      <div className="p-4 md:p-8 max-w-screen-2xl mx-auto">
         <EmptyState
           icon={ClipboardList}
           title="Este jogo ainda não foi scoutado"
@@ -280,7 +280,7 @@ function Summary({
   ];
 
   return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-5">
+    <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-5">
       <Button variant="ghost" size="sm" onClick={onBack} className="print-hide">
         <ArrowLeft className="h-4 w-4" /> Voltar
       </Button>

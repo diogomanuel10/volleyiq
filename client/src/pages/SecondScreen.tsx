@@ -109,7 +109,7 @@ export default function SecondScreen() {
   const recent = [...actions].slice(-30).reverse();
 
   return (
-    <div className="p-3 md:p-6 max-w-6xl mx-auto space-y-4">
+    <div className="p-3 md:p-6 max-w-screen-2xl mx-auto space-y-4">
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
           <Button asChild variant="ghost" size="icon">

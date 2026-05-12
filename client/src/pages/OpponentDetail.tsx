@@ -82,7 +82,7 @@ export default function OpponentDetail() {
 
   if (oppQuery.isLoading || !oppQuery.data) {
     return (
-      <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-4">
+      <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-4">
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-40 w-full" />
       </div>
@@ -92,7 +92,7 @@ export default function OpponentDetail() {
   const opp = oppQuery.data;
 
   return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6">
+    <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-6">
       <Link
         href="/opponents"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"

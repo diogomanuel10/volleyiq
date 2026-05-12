@@ -20,7 +20,7 @@ export function Placeholder({
   children?: ReactNode;
 }) {
   return (
-    <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{title}</h1>

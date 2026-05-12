@@ -86,7 +86,7 @@ export default function Pricing() {
   const current = team?.plan as PlanId | undefined;
 
   return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-8">
+    <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-8">
       <header className="text-center space-y-2">
         <Badge variant="outline" className="gap-1 mx-auto">
           <Sparkles className="h-3 w-3" /> Preços simples

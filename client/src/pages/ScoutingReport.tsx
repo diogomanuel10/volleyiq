@@ -93,7 +93,7 @@ function OpponentPicker({ teamId }: { teamId: string }) {
   }, [matchesQuery.data]);
 
   return (
-    <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-4">
+    <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-4">
       <header>
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
           Scouting Reports
@@ -176,7 +176,7 @@ function Report({
   }, [reportQuery.data?.opponent]);
 
   return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-5">
+    <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-5">
       <Button variant="ghost" size="sm" onClick={onBack} className="print-hide">
         <ArrowLeft className="h-4 w-4" /> Voltar
       </Button>

@@ -28,7 +28,7 @@ export default function TeamSettings() {
   if (!team) return null;
 
   return (
-    <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-6">
+    <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-6">
       <header>
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
           Definições da equipa

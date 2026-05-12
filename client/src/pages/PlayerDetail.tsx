@@ -193,7 +193,7 @@ export default function PlayerDetail() {
   const logs = logsQuery.data ?? [];
 
   return (
-    <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-6">
       <Button variant="ghost" size="sm" onClick={() => navigate("/players")}>
         <ArrowLeft className="h-4 w-4" /> Voltar
       </Button>

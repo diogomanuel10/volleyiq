@@ -66,7 +66,7 @@ function MatchPicker({ teamId }: { teamId: string }) {
   );
 
   return (
-    <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-4">
+    <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-4">
       <header>
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
           Match Day
@@ -181,7 +181,7 @@ function Board({
 
   if (matchQuery.isLoading) {
     return (
-      <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-4">
+      <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-4">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-64 w-full" />
       </div>
@@ -190,7 +190,7 @@ function Board({
   const match = matchQuery.data;
   if (!match) {
     return (
-      <div className="p-4 md:p-8 max-w-3xl mx-auto">
+      <div className="p-4 md:p-8 max-w-screen-2xl mx-auto">
         <Card>
           <CardContent className="p-10 text-center text-muted-foreground">
             Jogo não encontrado.{" "}
@@ -204,7 +204,7 @@ function Board({
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-5">
+    <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-5">
       <Button variant="ghost" size="sm" onClick={onBack}>
         <ArrowLeft className="h-4 w-4" /> Voltar
       </Button>
