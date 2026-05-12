@@ -10,6 +10,7 @@ import {
   FileText,
   Shuffle,
   Sparkles,
+  Settings,
   Menu,
   X,
 } from "lucide-react";
@@ -35,6 +36,7 @@ const allItems = [
   { href: "/scenario", icon: Shuffle, label: "Scenario" },
   { href: "/post-match", icon: CalendarDays, label: "Post-Match" },
   { href: "/pricing", icon: Sparkles, label: "Pricing" },
+  { href: "/settings", icon: Settings, label: "Definições" },
 ];
 
 export function MobileNav() {

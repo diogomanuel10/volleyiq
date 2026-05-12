@@ -10,6 +10,7 @@ import {
   Trophy,
   ClipboardCheck,
   Sparkles,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebarCollapsed } from "@/lib/sidebar";
@@ -27,6 +28,7 @@ const items = [
   { href: "/scenario", icon: Shuffle, label: "Scenario" },
   { href: "/post-match", icon: CalendarDays, label: "Post-Match" },
   { href: "/pricing", icon: Sparkles, label: "Pricing" },
+  { href: "/settings", icon: Settings, label: "Definições" },
 ];
 
 export function Sidebar() {
