@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Check,
@@ -26,23 +27,11 @@ import { api } from "@/lib/api";
 import type { Match } from "@shared/schema";
 import { cn } from "@/lib/utils";
 
-/**
- * Guia de primeiros passos — aparece no Dashboard enquanto o treinador
- * ainda não registou nenhuma acção. Desaparece automaticamente quando o
- * step 4 (Live Scout) estiver completo.
- *
- * Passos:
- *   1. Equipa criada ✅ (sempre feito — chegaram ao dashboard com equipa)
- *   2. Roster adicionado — abre PlayerImportDialog
- *   3. Jogo marcado — abre QuickMatchDialog
- *   4. Primeiro Live Scout → link para /scout
- */
-
 interface Props {
   teamId: string;
   teamName: string;
   playersCount: number;
-  matchId: string | null;   // primeiro jogo disponível para scout (ou null)
+  matchId: string | null;
   matchesCount: number;
   existingPlayerNumbers: number[];
 }
@@ -55,6 +44,7 @@ export function SetupGuide({
   matchesCount,
   existingPlayerNumbers,
 }: Props) {
+  const { t } = useTranslation();
   const [importOpen, setImportOpen] = useState(false);
   const [matchOpen, setMatchOpen] = useState(false);
 
@@ -63,7 +53,7 @@ export function SetupGuide({
       id: "team",
       done: true,
       icon: Check,
-      title: "Equipa criada",
+      title: t("setupGuide.steps.team.title"),
       detail: teamName,
       action: null,
     },
@@ -71,11 +61,11 @@ export function SetupGuide({
       id: "players",
       done: playersCount > 0,
       icon: Users,
-      title: "Adicionar roster",
+      title: t("setupGuide.steps.players.title"),
       detail:
         playersCount > 0
-          ? `${playersCount} jogador${playersCount !== 1 ? "as" : "a"}`
-          : "Importa CSV ou adiciona uma a uma",
+          ? t("setupGuide.steps.players.detailDone", { count: playersCount })
+          : t("setupGuide.steps.players.detail"),
       action:
         playersCount === 0 ? (
           <Button
@@ -84,7 +74,7 @@ export function SetupGuide({
             className="gap-1.5 shrink-0"
             onClick={() => setImportOpen(true)}
           >
-            <Upload className="h-3.5 w-3.5" /> Adicionar
+            <Upload className="h-3.5 w-3.5" /> {t("setupGuide.steps.players.action")}
           </Button>
         ) : null,
     },
@@ -92,11 +82,11 @@ export function SetupGuide({
       id: "match",
       done: matchesCount > 0,
       icon: CalendarPlus,
-      title: "Criar primeiro jogo",
+      title: t("setupGuide.steps.match.title"),
       detail:
         matchesCount > 0
-          ? `${matchesCount} jogo${matchesCount !== 1 ? "s" : ""} agendado${matchesCount !== 1 ? "s" : ""}`
-          : "Adversário + data, mais nada",
+          ? t("setupGuide.steps.match.detailDone", { count: matchesCount })
+          : t("setupGuide.steps.match.detail"),
       action:
         matchesCount === 0 ? (
           <Button
@@ -105,7 +95,7 @@ export function SetupGuide({
             className="gap-1.5 shrink-0"
             onClick={() => setMatchOpen(true)}
           >
-            <CalendarPlus className="h-3.5 w-3.5" /> Criar
+            <CalendarPlus className="h-3.5 w-3.5" /> {t("setupGuide.steps.match.action")}
           </Button>
         ) : null,
     },
@@ -113,8 +103,8 @@ export function SetupGuide({
       id: "scout",
       done: false,
       icon: Radio,
-      title: "Iniciar Live Scout",
-      detail: "Regista a tua primeira acção",
+      title: t("setupGuide.steps.scout.title"),
+      detail: t("setupGuide.steps.scout.detail"),
       action:
         matchId ? (
           <Button
@@ -123,12 +113,12 @@ export function SetupGuide({
             asChild
           >
             <Link href={`/scout/${matchId}`}>
-              <Radio className="h-3.5 w-3.5" /> Começar
+              <Radio className="h-3.5 w-3.5" /> {t("setupGuide.steps.scout.action")}
             </Link>
           </Button>
         ) : (
           <Button size="sm" variant="outline" className="gap-1.5 shrink-0" disabled>
-            <Radio className="h-3.5 w-3.5" /> Precisas de um jogo primeiro
+            <Radio className="h-3.5 w-3.5" /> {t("setupGuide.steps.scout.needMatch")}
           </Button>
         ),
     },
@@ -143,11 +133,11 @@ export function SetupGuide({
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="font-semibold text-base">Primeiros passos</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Completa estes 4 passos para começares a scout em menos de{" "}
-              <strong>10 minutos</strong>.
-            </p>
+            <h2 className="font-semibold text-base">{t("setupGuide.title")}</h2>
+            <p
+              className="text-xs text-muted-foreground mt-0.5"
+              dangerouslySetInnerHTML={{ __html: t("setupGuide.subtitle") }}
+            />
           </div>
           <span className="text-sm font-semibold tabular-nums text-muted-foreground">
             {done}/{steps.length}
@@ -223,13 +213,13 @@ export function SetupGuide({
 
         {/* Skip link */}
         <p className="text-xs text-center text-muted-foreground">
-          Queres explorar primeiro?{" "}
+          {t("setupGuide.exploreFirst")}{" "}
           <Link href="/players" className="underline underline-offset-2">
-            Ver roster
+            {t("setupGuide.viewRoster")}
           </Link>{" "}
           ·{" "}
           <Link href="/matches" className="underline underline-offset-2">
-            Ver jogos
+            {t("setupGuide.viewMatches")}
           </Link>
         </p>
       </div>
@@ -261,6 +251,7 @@ function QuickMatchDialog({
   onOpenChange: (v: boolean) => void;
   teamId: string;
 }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [opponent, setOpponent] = useState("");
   const [date, setDate] = useState(
@@ -279,22 +270,22 @@ function QuickMatchDialog({
         status: "scheduled",
       }),
     onSuccess: () => {
-      toast.success("Jogo criado! Já podes começar o scout.");
+      toast.success(t("setupGuide.quickMatch.created"));
       qc.invalidateQueries({ queryKey: ["matches"] });
       onOpenChange(false);
       setOpponent("");
     },
     onError: (err: any) =>
-      toast.error(err.message ?? "Falha a criar jogo"),
+      toast.error(err.message ?? t("setupGuide.quickMatch.createError")),
   });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Criar jogo</DialogTitle>
+          <DialogTitle>{t("setupGuide.quickMatch.title")}</DialogTitle>
           <DialogDescription>
-            Só precisas do adversário e da data — tudo o resto é opcional.
+            {t("setupGuide.quickMatch.description")}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -302,25 +293,25 @@ function QuickMatchDialog({
           onSubmit={(e) => {
             e.preventDefault();
             if (!opponent.trim()) {
-              toast.error("Escreve o nome do adversário.");
+              toast.error(t("setupGuide.quickMatch.opponentRequired"));
               return;
             }
             create.mutate();
           }}
         >
           <div className="space-y-1.5">
-            <Label htmlFor="qm-opponent">Adversário</Label>
+            <Label htmlFor="qm-opponent">{t("setupGuide.quickMatch.opponent")}</Label>
             <Input
               id="qm-opponent"
               autoFocus
-              placeholder="Ex: Benfica, SC Braga…"
+              placeholder={t("setupGuide.quickMatch.opponentPlaceholder")}
               value={opponent}
               onChange={(e) => setOpponent(e.target.value)}
               disabled={create.isPending}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="qm-date">Data</Label>
+            <Label htmlFor="qm-date">{t("setupGuide.quickMatch.date")}</Label>
             <Input
               id="qm-date"
               type="date"
@@ -336,10 +327,10 @@ function QuickMatchDialog({
               onClick={() => onOpenChange(false)}
               disabled={create.isPending}
             >
-              Cancelar
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={create.isPending}>
-              {create.isPending ? "A criar…" : "Criar jogo"}
+              {create.isPending ? t("setupGuide.quickMatch.creating") : t("setupGuide.quickMatch.create")}
             </Button>
           </div>
         </form>

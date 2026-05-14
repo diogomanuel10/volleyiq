@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,39 +9,40 @@ import { loginEmail, loginGoogle, registerEmail } from "@/lib/firebase";
 
 const DEV = import.meta.env.VITE_USE_DEV_AUTH === "true";
 
-function authErrorMessage(err: any): string {
-  switch (err?.code) {
-    case "auth/wrong-password":
-    case "auth/invalid-credential":
-      return "Palavra-passe incorrecta.";
-    case "auth/user-not-found":
-      return "Não existe conta com este email.";
-    case "auth/email-already-in-use":
-      return "Este email já está registado. Tenta entrar.";
-    case "auth/weak-password":
-      return "A palavra-passe precisa de pelo menos 6 caracteres.";
-    case "auth/invalid-email":
-      return "Endereço de email inválido.";
-    case "auth/too-many-requests":
-      return "Demasiadas tentativas. Aguarda uns minutos e tenta de novo.";
-    case "auth/network-request-failed":
-      return "Sem ligação à internet. Verifica a rede e tenta de novo.";
-    case "auth/unauthorized-domain":
-      return "Domínio não autorizado no Firebase. Adiciona este domínio em Firebase Console → Authentication → Settings → Authorized domains.";
-    case "auth/popup-closed-by-user":
-      return "Janela do Google fechada antes de confirmar.";
-    case "auth/cancelled-popup-request":
-      return ""; // silencioso — utilizador abriu outra janela
-    default:
-      return err?.message ?? "Falha ao autenticar.";
-  }
-}
-
 export default function Login() {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  function authErrorMessage(err: any): string {
+    switch (err?.code) {
+      case "auth/wrong-password":
+      case "auth/invalid-credential":
+        return t("login.errors.wrongPassword");
+      case "auth/user-not-found":
+        return t("login.errors.userNotFound");
+      case "auth/email-already-in-use":
+        return t("login.errors.emailInUse");
+      case "auth/weak-password":
+        return t("login.errors.weakPassword");
+      case "auth/invalid-email":
+        return t("login.errors.invalidEmail");
+      case "auth/too-many-requests":
+        return t("login.errors.tooManyRequests");
+      case "auth/network-request-failed":
+        return t("login.errors.networkFailed");
+      case "auth/unauthorized-domain":
+        return t("login.errors.unauthorizedDomain");
+      case "auth/popup-closed-by-user":
+        return t("login.errors.popupClosed");
+      case "auth/cancelled-popup-request":
+        return ""; // silent
+      default:
+        return err?.message ?? t("login.errors.authFailed");
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -68,21 +70,19 @@ export default function Login() {
             <CardTitle className="text-xl">VolleyIQ</CardTitle>
           </div>
           <p className="text-sm text-muted-foreground">
-            {mode === "login"
-              ? "Entra na tua conta para continuar."
-              : "Cria uma conta para começar."}
+            {mode === "login" ? t("login.signIn") : t("login.register")}
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
           {DEV && (
-            <div className="rounded-md border border-dashed bg-muted/50 p-3 text-xs text-muted-foreground">
-              Modo dev activo — clica em <b>Entrar</b> (ou Google) para entrar
-              como <code>dev@volleyiq.local</code> sem Firebase.
-            </div>
+            <div
+              className="rounded-md border border-dashed bg-muted/50 p-3 text-xs text-muted-foreground"
+              dangerouslySetInnerHTML={{ __html: t("login.devMode") }}
+            />
           )}
           <form onSubmit={submit} className="space-y-3">
             <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("login.email")}</Label>
               <Input
                 id="email"
                 type="email"
@@ -93,7 +93,7 @@ export default function Login() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="password">Palavra-passe</Label>
+              <Label htmlFor="password">{t("login.password")}</Label>
               <Input
                 id="password"
                 type="password"
@@ -104,7 +104,7 @@ export default function Login() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {mode === "login" ? "Entrar" : "Criar conta"}
+              {mode === "login" ? t("login.submit") : t("login.submitRegister")}
             </Button>
           </form>
           <Button
@@ -113,22 +113,19 @@ export default function Login() {
             onClick={async () => {
               try {
                 await loginGoogle();
-                // Com signInWithRedirect o browser já navega — nunca chega aqui.
               } catch (err: any) {
                 const msg = authErrorMessage(err);
                 if (msg) toast.error(msg);
               }
             }}
           >
-            Continuar com Google
+            {t("login.continueWithGoogle")}
           </Button>
           <button
             className="text-sm text-muted-foreground hover:text-foreground w-full text-center"
             onClick={() => setMode(mode === "login" ? "register" : "login")}
           >
-            {mode === "login"
-              ? "Ainda não tens conta? Criar uma."
-              : "Já tens conta? Entrar."}
+            {mode === "login" ? t("login.noAccount") : t("login.hasAccount")}
           </button>
         </CardContent>
       </Card>

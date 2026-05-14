@@ -16,19 +16,20 @@ import { cn } from "@/lib/utils";
 import { useSidebarCollapsed } from "@/lib/sidebar";
 import { TeamSwitcher } from "./TeamSwitcher";
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-const items = [
-  { href: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/scout", icon: Radio, label: "Live Scout" },
-  { href: "/matches", icon: Trophy, label: "Jogos" },
-  { href: "/players", icon: Users, label: "Jogadores" },
-  { href: "/opponents", icon: UsersRound, label: "Adversários" },
-  { href: "/matchday", icon: ClipboardCheck, label: "Match Day" },
-  { href: "/reports", icon: FileText, label: "Scouting Report" },
-  { href: "/scenario", icon: Shuffle, label: "Scenario" },
-  { href: "/post-match", icon: CalendarDays, label: "Post-Match" },
-  { href: "/pricing", icon: Sparkles, label: "Pricing" },
-  { href: "/settings", icon: Settings, label: "Definições" },
+const NAV_ITEMS = [
+  { href: "/", icon: LayoutDashboard, key: "dashboard" },
+  { href: "/scout", icon: Radio, key: "liveScout" },
+  { href: "/matches", icon: Trophy, key: "matches" },
+  { href: "/players", icon: Users, key: "players" },
+  { href: "/opponents", icon: UsersRound, key: "opponents" },
+  { href: "/matchday", icon: ClipboardCheck, key: "matchDay" },
+  { href: "/reports", icon: FileText, key: "scoutingReport" },
+  { href: "/scenario", icon: Shuffle, key: "scenario" },
+  { href: "/post-match", icon: CalendarDays, key: "postMatch" },
+  { href: "/pricing", icon: Sparkles, key: "pricing" },
+  { href: "/settings", icon: Settings, key: "settings" },
 ];
 
 export function Sidebar() {
@@ -36,6 +37,7 @@ export function Sidebar() {
   const { collapsed } = useSidebarCollapsed();
   const [hovered, setHovered] = useState(false);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { t } = useTranslation();
 
   // Expande se não estiver collapsed (pin) OU se estiver em hover
   const expanded = !collapsed || hovered;
@@ -85,7 +87,8 @@ export function Sidebar() {
         <TeamSwitcher collapsed={!expanded} />
       </div>
       <nav className={cn("flex-1 space-y-0.5", expanded ? "p-2" : "p-1.5")}>
-        {items.map((it) => {
+        {NAV_ITEMS.map((it) => {
+          const label = t(`nav.${it.key}`);
           const active =
             it.href === "/"
               ? location === "/"
@@ -94,7 +97,7 @@ export function Sidebar() {
             <Link
               key={it.href}
               href={it.href}
-              title={!expanded ? it.label : undefined}
+              title={!expanded ? label : undefined}
               className={cn(
                 "flex items-center rounded-md text-sm transition-colors",
                 !expanded
@@ -106,7 +109,7 @@ export function Sidebar() {
               )}
             >
               <it.icon className="h-4 w-4 shrink-0" />
-              {expanded && <span className="truncate">{it.label}</span>}
+              {expanded && <span className="truncate">{label}</span>}
             </Link>
           );
         })}

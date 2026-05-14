@@ -11,6 +11,7 @@ import {
   Zap,
   Repeat,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import type {
   Suggestion,
@@ -44,13 +45,14 @@ interface Props {
 }
 
 export function SuggestionsPanel({ suggestions, hasLog, hasHistory }: Props) {
+  const { t } = useTranslation();
   const isEmpty = suggestions.length === 0;
 
   return (
     <div className="rounded-xl border bg-card p-3 md:p-4 space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          <Lightbulb className="h-3.5 w-3.5" /> Sugestões
+          <Lightbulb className="h-3.5 w-3.5" /> {t("livescout.suggestions")}
         </div>
         {!isEmpty && (
           <span className="text-[10px] text-muted-foreground">
@@ -60,7 +62,7 @@ export function SuggestionsPanel({ suggestions, hasLog, hasHistory }: Props) {
       </div>
 
       {isEmpty ? (
-        <EmptyState hasLog={hasLog} hasHistory={hasHistory} />
+        <EmptyState hasLog={hasLog} hasHistory={hasHistory} t={t} />
       ) : (
         <ul className="space-y-1.5">
           <AnimatePresence initial={false}>
@@ -75,6 +77,7 @@ export function SuggestionsPanel({ suggestions, hasLog, hasHistory }: Props) {
 }
 
 function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
+  const { t } = useTranslation();
   const meta = CATEGORY_META[suggestion.category];
   const Icon = meta.icon;
   const SourceIcon = suggestion.source === "live" ? Zap : History;
@@ -99,7 +102,7 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
                 "h-1.5 w-1.5 rounded-full shrink-0",
                 PRIORITY_DOT[suggestion.priority],
               )}
-              aria-label={`prioridade ${suggestion.priority}`}
+              aria-label={t("livescout.priorityLabel", { priority: suggestion.priority })}
             />
             <p className="font-semibold leading-tight truncate">
               {suggestion.title}
@@ -121,20 +124,19 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
 function EmptyState({
   hasLog,
   hasHistory,
+  t,
 }: {
   hasLog: boolean;
   hasHistory: boolean;
+  t: (key: string) => string;
 }) {
   let msg: string;
   if (!hasLog && !hasHistory) {
-    msg =
-      "Acumula dados durante a partida — os primeiros pontos vão revelar tendências.";
+    msg = t("livescout.suggestionsEmpty.noData");
   } else if (hasLog && !hasHistory) {
-    msg =
-      "Sem histórico vs este adversário ainda. As sugestões live vão aparecer assim que houver padrão.";
+    msg = t("livescout.suggestionsEmpty.noHistory");
   } else {
-    msg =
-      "Sem padrões fortes neste momento. O painel vai actualizar à medida que registas.";
+    msg = t("livescout.suggestionsEmpty.noPatterns");
   }
   return (
     <p className="text-xs text-muted-foreground leading-snug py-2">{msg}</p>

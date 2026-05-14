@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronDown, Users } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,7 @@ const INITIAL: FormState = {
 };
 
 export default function Onboarding() {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<"create" | "join">("create");
 
   return (
@@ -36,10 +38,10 @@ export default function Onboarding() {
       <div className="w-full max-w-xl space-y-6">
         <div className="text-center">
           <h1 className="text-3xl font-semibold tracking-tight">
-            Bem-vindo ao VolleyIQ
+            {t("onboarding.welcome")}
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Cria a tua equipa ou junta-te a uma existente.
+            {t("onboarding.subtitle")}
           </p>
         </div>
 
@@ -54,7 +56,7 @@ export default function Onboarding() {
             )}
             onClick={() => setMode("create")}
           >
-            Criar equipa
+            {t("onboarding.createTeam")}
           </button>
           <button
             className={cn(
@@ -65,7 +67,7 @@ export default function Onboarding() {
             )}
             onClick={() => setMode("join")}
           >
-            Tenho um código
+            {t("onboarding.joinTeam")}
           </button>
         </div>
 
@@ -73,7 +75,7 @@ export default function Onboarding() {
 
         <div className="text-center">
           <Button variant="ghost" size="sm" onClick={() => logout()}>
-            Sair da conta
+            {t("onboarding.logout")}
           </Button>
         </div>
       </div>
@@ -82,6 +84,7 @@ export default function Onboarding() {
 }
 
 function CreateTeamForm() {
+  const { t } = useTranslation();
   const [form, setForm] = useState<FormState>(INITIAL);
   const [showOptional, setShowOptional] = useState(false);
   const qc = useQueryClient();
@@ -97,11 +100,11 @@ function CreateTeamForm() {
         primaryColor: data.primaryColor || null,
       }),
     onSuccess: () => {
-      toast.success("Equipa criada!");
+      toast.success(t("onboarding.form.created"));
       qc.invalidateQueries({ queryKey: ["teams"] });
     },
     onError: (err) => {
-      toast.error("Não foi possível criar a equipa", {
+      toast.error(t("onboarding.form.createError"), {
         description: err instanceof Error ? err.message : String(err),
       });
     },
@@ -114,7 +117,7 @@ function CreateTeamForm() {
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim() || !form.club.trim() || !form.category.trim()) {
-      toast.error("Preenche nome da equipa, clube e escalão.");
+      toast.error(t("onboarding.form.required"));
       return;
     }
     mutation.mutate(form);
@@ -127,13 +130,13 @@ function CreateTeamForm() {
     >
       <div className="grid gap-2">
         <Label htmlFor="name">
-          Nome da equipa <span className="text-destructive">*</span>
+          {t("onboarding.form.teamName")} <span className="text-destructive">*</span>
         </Label>
         <Input
           id="name"
           autoFocus
           required
-          placeholder="Ex: VolleyIQ Seniores A"
+          placeholder={t("onboarding.form.teamNamePlaceholder")}
           value={form.name}
           onChange={(e) => update("name", e.target.value)}
           disabled={mutation.isPending}
@@ -142,12 +145,12 @@ function CreateTeamForm() {
 
       <div className="grid gap-2">
         <Label htmlFor="club">
-          Clube <span className="text-destructive">*</span>
+          {t("onboarding.form.club")} <span className="text-destructive">*</span>
         </Label>
         <Input
           id="club"
           required
-          placeholder="Ex: CD Volley Lisboa"
+          placeholder={t("onboarding.form.clubPlaceholder")}
           value={form.club}
           onChange={(e) => update("club", e.target.value)}
           disabled={mutation.isPending}
@@ -156,12 +159,12 @@ function CreateTeamForm() {
 
       <div className="grid gap-2">
         <Label htmlFor="category">
-          Escalão <span className="text-destructive">*</span>
+          {t("onboarding.form.category")} <span className="text-destructive">*</span>
         </Label>
         <Input
           id="category"
           required
-          placeholder="Ex: Seniores Femininas, Sub-18 M…"
+          placeholder={t("onboarding.form.categoryPlaceholder")}
           value={form.category}
           onChange={(e) => update("category", e.target.value)}
           disabled={mutation.isPending}
@@ -180,27 +183,27 @@ function CreateTeamForm() {
               showOptional && "rotate-180",
             )}
           />
-          Detalhes opcionais (época, divisão, cor)
+          {t("onboarding.form.optionalDetails")}
         </button>
 
         {showOptional && (
           <div className="mt-4 space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
-                <Label htmlFor="season">Época</Label>
+                <Label htmlFor="season">{t("onboarding.form.season")}</Label>
                 <Input
                   id="season"
-                  placeholder="Ex: 2025/26"
+                  placeholder={t("onboarding.form.seasonPlaceholder")}
                   value={form.season}
                   onChange={(e) => update("season", e.target.value)}
                   disabled={mutation.isPending}
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="division">Divisão</Label>
+                <Label htmlFor="division">{t("onboarding.form.division")}</Label>
                 <Input
                   id="division"
-                  placeholder="Ex: Divisão A1"
+                  placeholder={t("onboarding.form.divisionPlaceholder")}
                   value={form.division}
                   onChange={(e) => update("division", e.target.value)}
                   disabled={mutation.isPending}
@@ -209,7 +212,7 @@ function CreateTeamForm() {
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="primaryColor">Cor principal</Label>
+              <Label htmlFor="primaryColor">{t("onboarding.form.primaryColor")}</Label>
               <div className="flex items-center gap-3">
                 <input
                   id="primaryColor"
@@ -218,7 +221,7 @@ function CreateTeamForm() {
                   onChange={(e) => update("primaryColor", e.target.value)}
                   disabled={mutation.isPending}
                   className="h-10 w-14 cursor-pointer rounded-md border border-input bg-background p-1"
-                  aria-label="Selector de cor principal"
+                  aria-label={t("onboarding.form.primaryColor")}
                 />
                 <Input
                   value={form.primaryColor}
@@ -243,13 +246,14 @@ function CreateTeamForm() {
         disabled={mutation.isPending}
         className="w-full"
       >
-        {mutation.isPending ? "A criar…" : "Criar equipa →"}
+        {mutation.isPending ? t("onboarding.form.creating") : t("onboarding.form.createButton")}
       </Button>
     </form>
   );
 }
 
 function JoinTeamForm() {
+  const { t } = useTranslation();
   const [code, setCode] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const qc = useQueryClient();
@@ -273,15 +277,15 @@ function JoinTeamForm() {
   const joinMutation = useMutation({
     mutationFn: () => api.post<Team>("/api/teams/join", { code: normalized }),
     onSuccess: () => {
-      toast.success("Juntaste-te à equipa!");
+      toast.success(t("onboarding.join.joined"));
       qc.invalidateQueries({ queryKey: ["teams"] });
     },
     onError: (err: any) => {
       const msg = err?.message ?? "";
       if (msg.includes("already_member")) {
-        toast.error("Já és membro desta equipa.");
+        toast.error(t("onboarding.join.alreadyMember"));
       } else {
-        toast.error("Código inválido ou expirado.");
+        toast.error(t("onboarding.join.invalidCode"));
       }
     },
   });
@@ -292,16 +296,16 @@ function JoinTeamForm() {
   return (
     <div className="rounded-xl border bg-card p-6 md:p-8 space-y-5 shadow-sm">
       <div className="space-y-1">
-        <Label htmlFor="invite-code">Código da equipa</Label>
+        <Label htmlFor="invite-code">{t("onboarding.join.inviteCode")}</Label>
         <p className="text-xs text-muted-foreground">
-          Pede o código de 6 letras ao treinador principal.
+          {t("onboarding.join.inviteCodeHint")}
         </p>
       </div>
 
       <Input
         id="invite-code"
         autoFocus
-        placeholder="Ex: ABC123"
+        placeholder={t("onboarding.join.placeholder")}
         value={code}
         onChange={(e) => {
           setCode(e.target.value.toUpperCase().slice(0, 6));
@@ -314,7 +318,9 @@ function JoinTeamForm() {
       {normalized.length === 6 && (
         <>
           {previewQuery.isLoading && (
-            <p className="text-xs text-muted-foreground text-center">A verificar código…</p>
+            <p className="text-xs text-muted-foreground text-center">
+              {t("onboarding.join.verifying")}
+            </p>
           )}
           {!previewQuery.isLoading && teamInfo && (
             <div className="rounded-lg border bg-muted/40 p-4 flex items-start gap-3">
@@ -329,7 +335,7 @@ function JoinTeamForm() {
           )}
           {!previewQuery.isLoading && !teamInfo && (
             <p className="text-xs text-destructive text-center">
-              Código não encontrado. Verifica com o teu treinador.
+              {t("onboarding.join.notFound")}
             </p>
           )}
         </>
@@ -340,7 +346,7 @@ function JoinTeamForm() {
         disabled={!codeOk || joinMutation.isPending}
         onClick={() => joinMutation.mutate()}
       >
-        {joinMutation.isPending ? "A juntar…" : "Juntar à equipa →"}
+        {joinMutation.isPending ? t("onboarding.join.joining") : t("onboarding.join.joinButton")}
       </Button>
     </div>
   );

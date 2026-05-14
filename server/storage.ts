@@ -14,6 +14,7 @@ import {
   opponentCoaches,
   lineups,
   substitutions,
+  userPreferences,
   type InsertTeam,
   type InsertPlayer,
   type InsertMatch,
@@ -686,4 +687,28 @@ export async function createSubstitution(data: InsertSubstitution) {
 
 export async function deleteSubstitution(id: string) {
   await db.delete(substitutions).where(eq(substitutions.id, id));
+}
+
+// ── User Preferences ────────────────────────────────────────────────────────
+export async function getUserPreferences(uid: string) {
+  const [row] = await db
+    .select()
+    .from(userPreferences)
+    .where(eq(userPreferences.uid, uid));
+  return row ?? null;
+}
+
+export async function upsertUserPreferences(uid: string, language: string) {
+  await db
+    .insert(userPreferences)
+    .values({ uid, language })
+    .onConflictDoUpdate({
+      target: userPreferences.uid,
+      set: { language, updatedAt: new Date() },
+    });
+  const [row] = await db
+    .select()
+    .from(userPreferences)
+    .where(eq(userPreferences.uid, uid));
+  return row;
 }

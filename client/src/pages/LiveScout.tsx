@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
   Crown,
@@ -91,8 +92,9 @@ export default function LiveScout() {
   );
 }
 
-// ── Match picker (quando /scout sem id) ──────────────────────────────────
+// ── Match picker (when /scout without id) ────────────────────────────────
 function MatchPicker({ teamId }: { teamId: string }) {
+  const { t } = useTranslation();
   const matchesQuery = useQuery({
     queryKey: ["matches", teamId],
     queryFn: () => api.get<Match[]>(`/api/matches?teamId=${teamId}`),
@@ -109,7 +111,7 @@ function MatchPicker({ teamId }: { teamId: string }) {
           Live Scout
         </h1>
         <p className="text-muted-foreground text-sm">
-          Escolhe um jogo para começar a registar acções.
+          {t("livescout.chooseMatch")}
         </p>
       </header>
 
@@ -122,9 +124,9 @@ function MatchPicker({ teamId }: { teamId: string }) {
       ) : selectable.length === 0 ? (
         <Card>
           <CardContent className="p-10 text-center text-muted-foreground space-y-3">
-            <p>Sem jogos agendados ou em curso.</p>
+            <p>{t("livescout.noScheduledMatches")}</p>
             <Button asChild variant="outline">
-              <Link href="/matches">Ir para Jogos</Link>
+              <Link href="/matches">{t("livescout.goToMatches")}</Link>
             </Button>
           </CardContent>
         </Card>
@@ -140,7 +142,7 @@ function MatchPicker({ teamId }: { teamId: string }) {
                 <div className="min-w-0">
                   <div className="font-semibold truncate">vs. {m.opponent}</div>
                   <div className="text-xs text-muted-foreground">
-                    {new Date(m.date).toLocaleDateString("pt-PT", {
+                    {new Date(m.date).toLocaleDateString(undefined, {
                       day: "2-digit",
                       month: "short",
                     })}
@@ -148,7 +150,7 @@ function MatchPicker({ teamId }: { teamId: string }) {
                   </div>
                 </div>
                 <Badge variant={m.status === "live" ? "warning" : "secondary"}>
-                  {m.status === "live" ? "Live" : "Agendado"}
+                  {m.status === "live" ? t("matches.status.live") : t("matches.status.scheduled")}
                 </Badge>
               </div>
             </Link>
@@ -169,6 +171,7 @@ function Scout({
   team: Team;
   onBack: () => void;
 }) {
+  const { t } = useTranslation();
   const teamId = team.id;
   const { mode, canUseComplete, set: setMode } = useScoutMode(
     teamId,
@@ -360,20 +363,20 @@ function Scout({
         videoTimeSec: videoRef.current?.getCurrentTime() ?? null,
       }),
     onError: (err: any) =>
-      toast.error(err.message ?? "Falha a guardar acção"),
+      toast.error(err.message ?? t("common.error")),
   });
 
   const deleteAction = useMutation({
     mutationFn: (id: string) => api.delete(`/api/actions/${id}`),
     onError: (err: any) =>
-      toast.error(err.message ?? "Falha a remover acção"),
+      toast.error(err.message ?? t("common.error")),
   });
 
   const updateMatch = useMutation({
     mutationFn: (patch: Partial<Match>) =>
       api.patch<Match>(`/api/matches/${matchId}?teamId=${teamId}`, patch),
     onError: (err: any) =>
-      toast.error(err.message ?? "Falha a actualizar jogo"),
+      toast.error(err.message ?? t("common.error")),
   });
 
   // IDs que já foram enviados ao servidor (ou estão em voo).
@@ -389,10 +392,10 @@ function Scout({
         createAction.mutate(a, {
           onSuccess: () => setPendingSync((n) => Math.max(0, n - 1)),
           onError: (err: any) => {
-            // Permite novo envio na próxima mutação.
+            // Allow retry on next mutation.
             syncedIds.current.delete(a.id);
             setPendingSync((n) => Math.max(0, n - 1));
-            toast.error("Acção não guardada — verifica a ligação", {
+            toast.error(t("livescout.actionSaveError"), {
               description: err?.message,
               action: { label: "OK", onClick: () => {} },
             });
@@ -415,7 +418,7 @@ function Scout({
     dispatch({ kind: "undo" });
     syncedIds.current.delete(last.id);
     deleteAction.mutate(last.id);
-    toast("Acção apagada", {
+    toast(t("livescout.actionUndone"), {
       description: player
         ? `#${player.number} · ${ACTION_LABEL[last.type]}`
         : ACTION_LABEL[last.type],
@@ -614,9 +617,9 @@ function Scout({
       <div className="p-4 md:p-8 max-w-3xl mx-auto">
         <Card>
           <CardContent className="p-10 text-center text-muted-foreground">
-            Jogo não encontrado.{" "}
+            {t("livescout.matchNotFound")}{" "}
             <Link href="/matches" className="text-primary hover:underline">
-              Voltar aos jogos
+              {t("livescout.backToMatches")}
             </Link>
           </CardContent>
         </Card>
@@ -628,19 +631,19 @@ function Scout({
     return (
       <div className="p-4 md:p-8 max-w-xl mx-auto space-y-4">
         <Button variant="ghost" size="sm" onClick={onBack}>
-          <ArrowLeft className="h-4 w-4" /> Voltar
+          <ArrowLeft className="h-4 w-4" /> {t("livescout.backButton")}
         </Button>
         <Card>
           <CardContent className="p-10 text-center space-y-4">
             <Users className="h-10 w-10 mx-auto text-muted-foreground/50" />
             <div>
-              <p className="font-semibold">Sem jogadoras no plantel</p>
+              <p className="font-semibold">{t("livescout.noPlayersOnCourt")}</p>
               <p className="text-sm text-muted-foreground mt-1">
-                Adiciona jogadoras à equipa antes de abrir o Live Scout.
+                {t("livescout.addPlayersFirst")}
               </p>
             </div>
             <Button asChild>
-              <Link href="/players">Ir para o Plantel</Link>
+              <Link href="/players">{t("livescout.goToPlayers")}</Link>
             </Button>
           </CardContent>
         </Card>
@@ -652,9 +655,19 @@ function Scout({
 
   const progressSteps =
     mode === "complete"
-      ? ["Jogadora", "Acção", "Origem", "Destino", "Resultado"]
-      : ["Jogadora", "Acção", "Zona", "Resultado"];
-  const totalSteps = progressSteps.length;
+      ? [
+          t("livescout.progressSteps.player"),
+          t("livescout.progressSteps.action"),
+          t("livescout.progressSteps.zoneFrom"),
+          t("livescout.progressSteps.zoneTo"),
+          t("livescout.progressSteps.result"),
+        ]
+      : [
+          t("livescout.progressSteps.player"),
+          t("livescout.progressSteps.action"),
+          t("livescout.progressSteps.zone"),
+          t("livescout.progressSteps.result"),
+        ];
   const stepNumber =
     step === "idle" || step === "player"
       ? 1
@@ -669,33 +682,21 @@ function Scout({
             : mode === "complete"
               ? 5
               : 4;
-  const stepLabel =
-    step === "idle" || step === "player"
-      ? "jogadora"
-      : step === "action"
-        ? "acção"
-        : step === "zoneFrom"
-          ? "origem"
-          : step === "zone" || step === "zoneTo"
-            ? mode === "complete"
-              ? "destino"
-              : "zona"
-            : "resultado";
 
   const hint =
     step === "idle" || step === "player"
-      ? "Toca numa jogadora para começar."
+      ? t("livescout.hints.player")
       : step === "action"
         ? selectedPlayer
-          ? `Escolhe acção para #${selectedPlayer.number} ${selectedPlayer.firstName}`
-          : "Escolhe o tipo de acção."
+          ? t("livescout.hints.action", { number: selectedPlayer.number, name: selectedPlayer.firstName })
+          : t("livescout.hints.actionGeneric")
         : step === "zoneFrom"
-          ? "Toca no campo onde a bola foi contactada (origem)."
+          ? t("livescout.hints.zoneFrom")
           : step === "zoneTo"
-            ? "Toca no campo no ponto exacto onde a bola caiu."
+            ? t("livescout.hints.zoneTo")
             : step === "zone"
-              ? "Toca no campo onde a bola caiu (ou salta o passo)."
-              : "Regista o resultado da acção.";
+              ? t("livescout.hints.zone")
+              : t("livescout.hints.result");
 
   function handleZoneFromSelect(
     zone: Zone,
@@ -717,10 +718,10 @@ function Scout({
   }
   function handleModeChange(next: ScoutMode) {
     if (next === "complete" && !canUseComplete) {
-      toast.message("Modo Completo requer plano Pro ou Club", {
-        description: "Vê os planos em /pricing.",
+      toast.message(t("livescout.modeLockedComplete"), {
+        description: t("pricing.viewPlans"),
         action: {
-          label: "Ver planos",
+          label: t("pricing.viewPlans"),
           onClick: () => (window.location.hash = "/pricing"),
         },
       });
@@ -743,7 +744,7 @@ function Scout({
       )}
       <header className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
-          <Button variant="ghost" size="icon" onClick={onBack} aria-label="Voltar">
+          <Button variant="ghost" size="icon" onClick={onBack} aria-label={t("livescout.backButton")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="min-w-0">
@@ -769,14 +770,13 @@ function Scout({
             <TooltipContent>
               <div className="space-y-1">
                 <div>
-                  <strong>Lite:</strong> jogadora → acção → zona → resultado.
+                  <strong>Lite:</strong> {t("livescout.modeTooltipLite")}
                 </div>
                 <div>
-                  <strong>Completo:</strong> adiciona origem da bola para
-                  trajectórias e heatmaps por origem.
+                  <strong>{t("keyboardHelp.modes.completeTitle")}:</strong> {t("livescout.modeTooltipComplete")}
                 </div>
                 <div className="text-muted-foreground">
-                  Carrega no botão de ajuda para mais detalhes.
+                  {t("livescout.modeTooltipHelp")}
                 </div>
               </div>
             </TooltipContent>
@@ -792,11 +792,11 @@ function Scout({
             size="sm"
             variant="ghost"
             onClick={() => setLineupOpen(true)}
-            title="Definir lineup deste set"
+            title={t("livescout.setLineup")}
           >
             <Users className="h-4 w-4" />
             <span className="hidden sm:inline ml-1">
-              {savedLineup ? "Lineup" : "Definir lineup"}
+              {savedLineup ? t("livescout.lineupButton") : t("livescout.setLineup")}
             </span>
           </Button>
           <Button
@@ -804,24 +804,24 @@ function Scout({
             variant="ghost"
             onClick={() => setSubOpen(true)}
             disabled={onCourt.length === 0 || bench.length === 0}
-            title="Substituição"
+            title={t("livescout.subs")}
           >
             <Repeat className="h-4 w-4" />
-            <span className="hidden sm:inline ml-1">Subs</span>
+            <span className="hidden sm:inline ml-1">{t("livescout.subs")}</span>
           </Button>
           <Button
             size="sm"
             variant="ghost"
             onClick={() => openHelp("shortcuts")}
-            title="Ajuda (?)"
-            aria-label="Ajuda do Live Scout"
+            title={t("livescout.helpButton")}
+            aria-label={t("livescout.helpAriaLabel")}
           >
             <Keyboard className="h-4 w-4" />
           </Button>
-          <Button asChild size="sm" variant="ghost" title="Segunda écran">
+          <Button asChild size="sm" variant="ghost" title={t("livescout.secondScreen")}>
             <Link href={`/second-screen/${matchId}`}>
               <Monitor className="h-4 w-4" />
-              <span className="hidden sm:inline ml-1">Segunda écran</span>
+              <span className="hidden sm:inline ml-1">{t("livescout.secondScreen")}</span>
             </Link>
           </Button>
           {match.status !== "live" && (
@@ -831,7 +831,7 @@ function Scout({
               onClick={() => updateMatch.mutate({ status: "live" })}
               disabled={updateMatch.isPending}
             >
-              <Radio className="h-4 w-4" /> Iniciar
+              <Radio className="h-4 w-4" /> {t("livescout.startMatch")}
             </Button>
           )}
           {match.status === "live" && (
@@ -840,12 +840,12 @@ function Scout({
               variant="outline"
               className="border-emerald-500/40 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
               onClick={() => {
-                if (confirm("Marcar jogo como terminado?"))
+                if (confirm(t("livescout.confirmFinishMatch")))
                   updateMatch.mutate({ status: "finished" });
               }}
               disabled={updateMatch.isPending}
             >
-              Terminar jogo
+              {t("livescout.finishMatch")}
             </Button>
           )}
         </div>
@@ -909,10 +909,10 @@ function Scout({
                     onClick={() =>
                       dispatch({ kind: "quickPoint", winner: "home" })
                     }
-                    title="Nós marcámos por erro do adversário (sem acção registada)"
+                    title={t("livescout.quickPointHomeTitle")}
                   >
                     <span className="text-base leading-none mr-1">✓</span>
-                    Ponto nosso · erro deles
+                    {t("livescout.quickPointHome")}
                   </Button>
                   <Button
                     variant="outline"
@@ -921,10 +921,10 @@ function Scout({
                     onClick={() => {
                       dispatch({ kind: "quickPoint", winner: "away" });
                     }}
-                    title="Adversário marcou por mérito próprio (kill/ace que não foi erro nosso rastreado)"
+                    title={t("livescout.quickPointAwayTitle")}
                   >
                     <span className="text-base leading-none mr-1">✗</span>
-                    Ponto deles · mérito deles
+                    {t("livescout.quickPointAway")}
                   </Button>
                 </div>
               </>
@@ -952,18 +952,18 @@ function Scout({
                   size="sm"
                   onClick={() => dispatch({ kind: "skipZone" })}
                 >
-                  <SkipForward className="h-4 w-4" /> Saltar zona
+                  <SkipForward className="h-4 w-4" /> {t("livescout.skipZone")}
                 </Button>
               </div>
             )}
             {step === "result" && state.actionType && (
               <div className="space-y-1">
                 <div className="text-xs text-muted-foreground">
-                  Resultado de {ACTION_LABEL[state.actionType].toLowerCase()}
+                  {t("livescout.resultLabel", { action: ACTION_LABEL[state.actionType].toLowerCase() })}
                   {state.zoneFrom != null
                     ? ` (Z${state.zoneFrom} → Z${state.zoneTo})`
                     : state.zoneTo != null
-                      ? ` em Z${state.zoneTo}`
+                      ? ` Z${state.zoneTo}`
                       : ""}
                 </div>
                 <ResultBar
@@ -1045,12 +1045,11 @@ function Scout({
           {match.videoUrl && (
             <div className="rounded-xl border bg-card p-3 md:p-4 space-y-2 lg:shrink-0">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                <Video className="h-3.5 w-3.5" /> Vídeo
+                <Video className="h-3.5 w-3.5" /> {t("livescout.videoLabel")}
               </div>
               <VideoPanel ref={videoRef} url={match.videoUrl} />
               <p className="text-[11px] text-muted-foreground">
-                As acções registadas vão ser marcadas com o tempo actual do
-                vídeo.
+                {t("livescout.videoTimestamp")}
               </p>
             </div>
           )}
@@ -1102,7 +1101,7 @@ function Scout({
   );
 }
 
-// ── Mode switch (Lite vs Completo) ───────────────────────────────────────
+// ── Mode switch (Lite vs Complete) ───────────────────────────────────────
 function ModeSwitch({
   mode,
   canUseComplete,
@@ -1112,6 +1111,7 @@ function ModeSwitch({
   canUseComplete: boolean;
   onChange: (m: ScoutMode) => void;
 }) {
+  const { t } = useTranslation();
   const Btn = ({
     target,
     icon: Icon,
@@ -1128,8 +1128,8 @@ function ModeSwitch({
         onClick={() => onChange(target)}
         title={
           locked
-            ? "Plano Pro/Club desbloqueia o modo Completo"
-            : `Modo ${label}`
+            ? t("livescout.modeLockedComplete")
+            : t("livescout.modeLabel", { label })
         }
         className={cn(
           "inline-flex items-center gap-1 px-2.5 h-8 text-xs font-medium transition-colors",
@@ -1149,14 +1149,14 @@ function ModeSwitch({
 
   return (
     <div className="hidden sm:inline-flex items-stretch rounded-md border overflow-hidden">
-      <Btn target="lite" icon={Zap} label="Lite" />
+      <Btn target="lite" icon={Zap} label={t("keyboardHelp.modes.liteTitle")} />
       <div className="w-px bg-border" aria-hidden />
-      <Btn target="complete" icon={Gauge} label="Completo" />
+      <Btn target="complete" icon={Gauge} label={t("keyboardHelp.modes.completeTitle")} />
     </div>
   );
 }
 
-// ── Scope selector (Só nós / Ambas) ─────────────────────────────────────────
+// ── Scope selector ───────────────────────────────────────────────────────
 function ScopeSelector({
   scope,
   onChange,
@@ -1164,8 +1164,9 @@ function ScopeSelector({
   scope: ScoutScope;
   onChange: (s: ScoutScope) => void;
 }) {
+  const { t } = useTranslation();
   return (
-    <div className="hidden sm:inline-flex items-stretch rounded-md border overflow-hidden" title="Âmbito do scout">
+    <div className="hidden sm:inline-flex items-stretch rounded-md border overflow-hidden" title={t("livescout.scopeLabel")}>
       {(["home", "both"] as const).map((s) => (
         <button
           key={s}
@@ -1177,7 +1178,7 @@ function ScopeSelector({
               : "hover:bg-accent text-muted-foreground",
           )}
         >
-          {s === "home" ? "Só nós" : "Ambas"}
+          {s === "home" ? t("livescout.scopeHome") : t("livescout.scopeBoth")}
         </button>
       ))}
     </div>
@@ -1200,9 +1201,10 @@ function TeamToggle({
   disabled: boolean;
   onChange: (side: Side) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex items-center gap-2 px-1">
-      <span className="text-xs text-muted-foreground shrink-0">Equipa:</span>
+      <span className="text-xs text-muted-foreground shrink-0">{t("livescout.teamLabel")}</span>
       <div className="inline-flex rounded-md border overflow-hidden">
         {(["home", "away"] as const).map((side) => {
           const isActive = activeSide === side;
@@ -1233,7 +1235,7 @@ function TeamToggle({
         })}
       </div>
       {suggestedSide !== activeSide && !disabled && (
-        <span className="text-[10px] text-muted-foreground">sugestão</span>
+        <span className="text-[10px] text-muted-foreground">{t("livescout.teamSuggestion")}</span>
       )}
     </div>
   );
@@ -1249,20 +1251,20 @@ function OpponentPlayerGrid({
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   const sorted = [...players].sort((a, b) => (a.number ?? 99) - (b.number ?? 99));
 
   if (sorted.length === 0) {
     return (
       <p className="text-xs text-center text-muted-foreground py-3">
-        Sem jogadores catalogados para este adversário.{" "}
-        Adiciona-os em <strong>Adversários</strong>.
+        {t("livescout.noOpponentPlayers")}
       </p>
     );
   }
 
   return (
     <div className="rounded-xl border bg-card p-3">
-      <p className="text-xs text-muted-foreground mb-2">Jogadores do adversário</p>
+      <p className="text-xs text-muted-foreground mb-2">{t("livescout.opponentPlayersLabel")}</p>
       <div className="flex flex-wrap gap-1.5">
         {sorted.map((p) => (
           <button

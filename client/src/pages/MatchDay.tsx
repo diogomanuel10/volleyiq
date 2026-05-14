@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
   ClipboardList,
@@ -28,14 +29,11 @@ import {
 } from "@shared/types";
 import type { ChecklistItem, Match } from "@shared/schema";
 
-const CATEGORY_META: Record<
-  ChecklistCategory,
-  { label: string; icon: React.ComponentType<{ className?: string }> }
-> = {
-  lineup: { label: "Lineup", icon: Users },
-  scouting: { label: "Scouting", icon: Eye },
-  tactical: { label: "Tático", icon: Swords },
-  logistics: { label: "Logística", icon: Truck },
+const CATEGORY_ICONS: Record<ChecklistCategory, React.ComponentType<{ className?: string }>> = {
+  lineup: Users,
+  scouting: Eye,
+  tactical: Swords,
+  logistics: Truck,
 };
 
 export default function MatchDay() {
@@ -57,6 +55,7 @@ export default function MatchDay() {
 }
 
 function MatchPicker({ teamId }: { teamId: string }) {
+  const { t } = useTranslation();
   const matchesQuery = useQuery({
     queryKey: ["matches", teamId],
     queryFn: () => api.get<Match[]>(`/api/matches?teamId=${teamId}`),
@@ -69,10 +68,10 @@ function MatchPicker({ teamId }: { teamId: string }) {
     <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-4">
       <header>
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-          Match Day
+          {t("matchDay.title")}
         </h1>
         <p className="text-muted-foreground text-sm">
-          Escolhe o próximo jogo para preparares a checklist.
+          {t("matchDay.subtitle")}
         </p>
       </header>
 
@@ -85,9 +84,9 @@ function MatchPicker({ teamId }: { teamId: string }) {
       ) : list.length === 0 ? (
         <Card>
           <CardContent className="p-10 text-center text-muted-foreground space-y-3">
-            <p>Sem jogos agendados.</p>
+            <p>{t("matchDay.noScheduled")}</p>
             <Button asChild variant="outline">
-              <Link href="/matches">Ir para Jogos</Link>
+              <Link href="/matches">{t("nav.matches")}</Link>
             </Button>
           </CardContent>
         </Card>
@@ -108,7 +107,7 @@ function MatchPicker({ teamId }: { teamId: string }) {
                   </div>
                 </div>
                 <Badge variant={m.status === "live" ? "warning" : "secondary"}>
-                  {m.status === "live" ? "Live" : "Agendado"}
+                  {m.status === "live" ? t("matches.status.live") : t("matches.status.scheduled")}
                 </Badge>
               </div>
             </Link>
@@ -128,6 +127,7 @@ function Board({
   teamId: string;
   onBack: () => void;
 }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
 
   const matchQuery = useQuery({
@@ -157,7 +157,7 @@ function Board({
     },
     onError: (err: any, _vars, ctx) => {
       qc.setQueryData(["checklist", matchId], ctx?.prev);
-      toast.error(err.message ?? "Falha a gravar");
+      toast.error(err.message ?? t("common.error"));
     },
     onSettled: () =>
       qc.invalidateQueries({ queryKey: ["checklist", matchId] }),
@@ -193,9 +193,9 @@ function Board({
       <div className="p-4 md:p-8 max-w-screen-2xl mx-auto">
         <Card>
           <CardContent className="p-10 text-center text-muted-foreground">
-            Jogo não encontrado.{" "}
+            {t("matchDay.notFound")}{" "}
             <Link href="/matches" className="text-primary hover:underline">
-              Voltar aos jogos
+              {t("nav.matches")}
             </Link>
           </CardContent>
         </Card>
@@ -206,7 +206,7 @@ function Board({
   return (
     <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-5">
       <Button variant="ghost" size="sm" onClick={onBack}>
-        <ArrowLeft className="h-4 w-4" /> Voltar
+        <ArrowLeft className="h-4 w-4" /> {t("common.back")}
       </Button>
 
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -218,24 +218,24 @@ function Board({
           <p className="text-muted-foreground text-sm">
             {formatDate(match.date)}
             {match.venue === "home"
-              ? " · Casa"
+              ? ` · ${t("matches.venue.home")}`
               : match.venue === "away"
-                ? " · Fora"
-                : " · Neutro"}
+                ? ` · ${t("matches.venue.away")}`
+                : ` · ${t("matches.venue.neutral")}`}
             {match.competition ? ` · ${match.competition}` : ""}
           </p>
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline" size="sm">
             <Link href={`/scout/${match.id}`}>
-              <Radio className="h-4 w-4" /> Live Scout
+              <Radio className="h-4 w-4" /> {t("nav.livescout")}
             </Link>
           </Button>
           <Button asChild variant="outline" size="sm">
             <Link
               href={`/reports/${encodeURIComponent(match.opponent)}`}
             >
-              <FileBarChart className="h-4 w-4" /> Report
+              <FileBarChart className="h-4 w-4" /> {t("nav.reports")}
             </Link>
           </Button>
         </div>
@@ -246,7 +246,7 @@ function Board({
           <div className="flex items-center justify-between">
             <div>
               <div className="text-xs text-muted-foreground uppercase tracking-wide">
-                Readiness
+                {t("matchDay.readiness")}
               </div>
               <div className="text-2xl font-bold tabular-nums">
                 {done}/{total}
@@ -277,7 +277,7 @@ function Board({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {CHECKLIST_CATEGORIES.map((cat) => {
-            const meta = CATEGORY_META[cat];
+            const Icon = CATEGORY_ICONS[cat];
             const rows = grouped[cat] ?? [];
             const d = rows.filter((r) => r.done).length;
             return (
@@ -285,8 +285,8 @@ function Board({
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 font-semibold">
-                      <meta.icon className="h-4 w-4 text-primary" />
-                      {meta.label}
+                      <Icon className="h-4 w-4 text-primary" />
+                      {t(`matchDay.categories.${cat}`)}
                     </div>
                     <span className="text-xs text-muted-foreground tabular-nums">
                       {d}/{rows.length}

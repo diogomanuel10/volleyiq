@@ -1,5 +1,6 @@
 import { Link, useParams, useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
   Sparkles,
@@ -46,24 +47,6 @@ import type {
   TrainingPriority,
   TrainingRecommendation,
 } from "@shared/types";
-
-const POSITION_LABEL: Record<string, string> = {
-  OH: "Ponta (Outside Hitter)",
-  OPP: "Oposto (Opposite)",
-  MB: "Central (Middle Blocker)",
-  S: "Distribuidor (Setter)",
-  L: "Líbero",
-  DS: "Defensivo (Defensive Specialist)",
-};
-
-const FOCUS_LABEL: Record<TrainingFocus, string> = {
-  serve: "Serviço",
-  attack: "Ataque",
-  reception: "Recepção",
-  block: "Bloco",
-  defense: "Defesa",
-  setting: "Distribuição",
-};
 
 const PRIORITY_STYLE: Record<TrainingPriority, string> = {
   high: "bg-red-600 text-white hover:bg-red-600/90",
@@ -153,6 +136,7 @@ export default function PlayerDetail() {
   const params = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { team } = useTeam();
+  const { t } = useTranslation();
   const qc = useQueryClient();
 
   const summaryQuery = useQuery({
@@ -195,7 +179,7 @@ export default function PlayerDetail() {
   return (
     <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-6">
       <Button variant="ghost" size="sm" onClick={() => navigate("/players")}>
-        <ArrowLeft className="h-4 w-4" /> Voltar
+        <ArrowLeft className="h-4 w-4" /> {t("common.back")}
       </Button>
 
       {summaryQuery.isLoading ? (
@@ -203,9 +187,9 @@ export default function PlayerDetail() {
       ) : !player ? (
         <Card>
           <CardContent className="p-10 text-center text-muted-foreground">
-            Jogadora não encontrada.{" "}
+            {t("players.notFound")}{" "}
             <Link href="/players" className="text-primary hover:underline">
-              Voltar ao roster
+              {t("players.backToRoster")}
             </Link>
           </CardContent>
         </Card>
@@ -226,16 +210,16 @@ export default function PlayerDetail() {
                 </div>
                 <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-muted-foreground">
                   <Badge variant="secondary">#{player.number}</Badge>
-                  <span>{POSITION_LABEL[player.position]}</span>
+                  <span>{t(`players.positionsLong.${player.position}`)}</span>
                   {player.heightCm && <span>· {player.heightCm} cm</span>}
                   {!player.active && (
-                    <Badge variant="outline">Inactiva</Badge>
+                    <Badge variant="outline">{t("playerDetail.inactive")}</Badge>
                   )}
                 </div>
                 <div className="text-xs text-muted-foreground mt-2">
                   {summary!.actions > 0
-                    ? `${summary!.actions} acções nos últimos jogos`
-                    : "Sem acções registadas nos últimos jogos"}
+                    ? t("playerDetail.actions", { count: summary!.actions })
+                    : t("playerDetail.noActions")}
                 </div>
               </div>
             </CardContent>
@@ -244,73 +228,73 @@ export default function PlayerDetail() {
           {/* ── Tabs ────────────────────────────────────────────────── */}
           <Tabs defaultValue="overview">
             <TabsList className="w-full justify-start">
-              <TabsTrigger value="overview">Visão geral</TabsTrigger>
-              <TabsTrigger value="attack">Ataque</TabsTrigger>
-              <TabsTrigger value="serve-reception">Serviço & Receção</TabsTrigger>
-              <TabsTrigger value="history">Histórico</TabsTrigger>
-              <TabsTrigger value="training">Treino</TabsTrigger>
+              <TabsTrigger value="overview">{t("playerDetail.tabs.overview")}</TabsTrigger>
+              <TabsTrigger value="attack">{t("playerDetail.tabs.attack")}</TabsTrigger>
+              <TabsTrigger value="serve-reception">{t("playerDetail.tabs.serveReception")}</TabsTrigger>
+              <TabsTrigger value="history">{t("playerDetail.tabs.history")}</TabsTrigger>
+              <TabsTrigger value="training">{t("playerDetail.tabs.training")}</TabsTrigger>
             </TabsList>
 
-            {/* ── Visão geral ─────────────────────────────────────── */}
+            {/* ── Overview ─────────────────────────────────────────── */}
             <TabsContent value="overview" className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <KpiCard
-                  label="Kill %"
+                  label={t("playerDetail.kpis.killPct")}
                   value={
                     summary!.kpis.killPct > 0
                       ? `${summary!.kpis.killPct}%`
                       : "—"
                   }
-                  hint="ataques convertidos"
+                  hint={t("playerDetail.kpis.killPctHint")}
                   playerVal={summary!.kpis.killPct}
                   teamVal={summary!.teamKpis.killPct}
                   higherIsBetter
                 />
                 <KpiCard
-                  label="Attack Eff"
+                  label={t("playerDetail.kpis.attackEff")}
                   value={
                     summary!.kpis.attackEff !== 0
                       ? summary!.kpis.attackEff.toFixed(3)
                       : "—"
                   }
-                  hint="(kills − erros) / tentativas"
+                  hint={t("playerDetail.kpis.attackEffHint")}
                   playerVal={summary!.kpis.attackEff}
                   teamVal={summary!.teamKpis.attackEff}
                   higherIsBetter
                 />
                 <KpiCard
-                  label="Pass Rating"
+                  label={t("playerDetail.kpis.passRating")}
                   value={
                     summary!.kpis.passRating > 0
                       ? summary!.kpis.passRating.toFixed(2)
                       : "—"
                   }
-                  hint="escala 0–3"
+                  hint={t("playerDetail.kpis.passRatingHint")}
                   playerVal={summary!.kpis.passRating}
                   teamVal={summary!.teamKpis.passRating}
                   higherIsBetter
                 />
                 <KpiCard
-                  label="Serve Ace %"
+                  label={t("playerDetail.kpis.serveAcePct")}
                   value={
                     summary!.kpis.serveAcePct > 0
                       ? `${summary!.kpis.serveAcePct}%`
                       : "—"
                   }
-                  hint="serviços directos"
+                  hint={t("playerDetail.kpis.serveAcePctHint")}
                   playerVal={summary!.kpis.serveAcePct}
                   teamVal={summary!.teamKpis.serveAcePct}
                   higherIsBetter
                 />
                 <KpiCard
-                  label="Blocks"
+                  label={t("playerDetail.kpis.blocks")}
                   value={summary!.kpis.blocks || "—"}
-                  hint="stuff blocks"
+                  hint={t("playerDetail.kpis.blocksHint")}
                 />
                 <KpiCard
-                  label="Digs"
+                  label={t("playerDetail.kpis.digs")}
                   value={summary!.kpis.digs || "—"}
-                  hint="defesas perfeitas/boas"
+                  hint={t("playerDetail.kpis.digsHint")}
                 />
               </div>
 
@@ -318,7 +302,7 @@ export default function PlayerDetail() {
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm">
-                      Fraquezas detectadas
+                      {t("playerDetail.weaknesses")}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="text-sm text-muted-foreground space-y-1">
@@ -329,12 +313,11 @@ export default function PlayerDetail() {
                 </Card>
               )}
 
-              {/* Trend chart — só aparece se houver ≥ 2 jogos */}
               {summary!.trend.length >= 2 && (
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2 text-sm">
-                      <TrendingUp className="h-4 w-4" /> Tendência
+                      <TrendingUp className="h-4 w-4" /> {t("playerDetail.trend")}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -344,46 +327,45 @@ export default function PlayerDetail() {
               )}
             </TabsContent>
 
-            {/* ── Ataque ─────────────────────────────────────────────── */}
+            {/* ── Attack ─────────────────────────────────────────────── */}
             <TabsContent value="attack" className="space-y-4">
               {summary!.attackHeatmap.total === 0 ? (
                 <EmptySection
                   icon={<Target className="h-8 w-8" />}
-                  message="Sem ataques registados nos últimos jogos."
+                  message={t("playerDetail.attackEmpty")}
                 />
               ) : (
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2 text-sm">
                       <Target className="h-4 w-4" />
-                      Onde ataca · {summary!.attackHeatmap.total} ataques
+                      {t("playerDetail.attackTitle", { count: summary!.attackHeatmap.total })}
                     </CardTitle>
                     <p className="text-xs text-muted-foreground">
-                      Distribuição por zona DV (volume) e pontos precisos
-                      registados (cor = resultado).
+                      {t("playerDetail.attackNote")}
                     </p>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">
-                          Heatmap por zona
+                          {t("playerDetail.heatmapByZone")}
                         </div>
                         <HeatmapCourt
                           zones={summary!.attackHeatmap.zones}
                           maxCount={summary!.attackHeatmap.maxCount}
                           side="opponent"
-                          ariaLabel="Heatmap de ataques por zona"
+                          ariaLabel={t("playerDetail.heatmapByZone")}
                         />
                       </div>
                       <div>
                         <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">
-                          Pontos precisos
+                          {t("playerDetail.precisePoints")}
                         </div>
                         <ScatterCourt
                           points={summary!.attackPoints}
                           side="opponent"
-                          ariaLabel="Pontos precisos de ataque"
+                          ariaLabel={t("playerDetail.precisePoints")}
                         />
                         <Legend />
                       </div>
@@ -392,7 +374,7 @@ export default function PlayerDetail() {
                     {summary!.topAttackZones.length > 0 && (
                       <div className="mt-4 pt-4 border-t">
                         <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2">
-                          Top zonas favoritas
+                          {t("playerDetail.topZones")}
                         </div>
                         <div className="grid grid-cols-3 gap-2">
                           {summary!.topAttackZones.map((z) => (
@@ -407,7 +389,7 @@ export default function PlayerDetail() {
                                 {z.count}
                               </div>
                               <div className="text-[10px] text-muted-foreground">
-                                {z.killPct}% kill
+                                {z.killPct}% {t("playerDetail.killPct")}
                               </div>
                             </div>
                           ))}
@@ -419,46 +401,45 @@ export default function PlayerDetail() {
               )}
             </TabsContent>
 
-            {/* ── Serviço & Receção ───────────────────────────────────── */}
+            {/* ── Serve & Reception ───────────────────────────────────── */}
             <TabsContent value="serve-reception" className="space-y-4">
-              {/* Serve */}
               {summary!.serveHeatmap.total === 0 ? (
                 <EmptySection
                   icon={<Send className="h-8 w-8" />}
-                  message="Sem serviços registados nos últimos jogos."
+                  message={t("playerDetail.serveEmpty")}
                 />
               ) : (
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2 text-sm">
                       <Send className="h-4 w-4" />
-                      Onde serve · {summary!.serveHeatmap.total} serviços
+                      {t("playerDetail.serveTitle", { count: summary!.serveHeatmap.total })}
                     </CardTitle>
                     <p className="text-xs text-muted-foreground">
-                      Zona alvo do serviço (lado adversário).
+                      {t("playerDetail.serveNote")}
                     </p>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">
-                          Heatmap por zona
+                          {t("playerDetail.heatmapByZone")}
                         </div>
                         <HeatmapCourt
                           zones={summary!.serveHeatmap.zones}
                           maxCount={summary!.serveHeatmap.maxCount}
                           side="opponent"
-                          ariaLabel="Heatmap de saques por zona"
+                          ariaLabel={t("playerDetail.heatmapByZone")}
                         />
                       </div>
                       <div>
                         <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">
-                          Pontos precisos
+                          {t("playerDetail.precisePoints")}
                         </div>
                         <ScatterCourt
                           points={summary!.servePoints}
                           side="opponent"
-                          ariaLabel="Pontos precisos de saque"
+                          ariaLabel={t("playerDetail.precisePoints")}
                         />
                         <Legend />
                       </div>
@@ -467,21 +448,20 @@ export default function PlayerDetail() {
                 </Card>
               )}
 
-              {/* Reception */}
               {summary!.receptionHeatmap.total === 0 ? (
                 <EmptySection
                   icon={<ShieldCheck className="h-8 w-8" />}
-                  message="Sem recepções registadas nos últimos jogos."
+                  message={t("playerDetail.receptionEmpty")}
                 />
               ) : (
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2 text-sm">
                       <ShieldCheck className="h-4 w-4" />
-                      Onde recebe · {summary!.receptionHeatmap.total} recepções
+                      {t("playerDetail.receptionTitle", { count: summary!.receptionHeatmap.total })}
                     </CardTitle>
                     <p className="text-xs text-muted-foreground">
-                      Zona de destino da recepção no campo próprio.
+                      {t("playerDetail.receptionNote")}
                     </p>
                   </CardHeader>
                   <CardContent>
@@ -489,25 +469,25 @@ export default function PlayerDetail() {
                       zones={summary!.receptionHeatmap.zones}
                       maxCount={summary!.receptionHeatmap.maxCount}
                       side="ours"
-                      ariaLabel="Heatmap de recepções por zona"
+                      ariaLabel={t("playerDetail.receptionTitle", { count: summary!.receptionHeatmap.total })}
                     />
                   </CardContent>
                 </Card>
               )}
             </TabsContent>
 
-            {/* ── Histórico ───────────────────────────────────────────── */}
+            {/* ── History ───────────────────────────────────────────── */}
             <TabsContent value="history" className="space-y-4">
               {summary!.matchHistory.length === 0 ? (
                 <EmptySection
                   icon={<History className="h-8 w-8" />}
-                  message="Sem jogos com dados para esta atleta."
+                  message={t("playerDetail.historyEmpty")}
                 />
               ) : (
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2 text-sm">
-                      <History className="h-4 w-4" /> Histórico jogo-a-jogo
+                      <History className="h-4 w-4" /> {t("playerDetail.historyTitle")}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="overflow-x-auto">
@@ -515,28 +495,28 @@ export default function PlayerDetail() {
                       <thead>
                         <tr className="text-[11px] uppercase tracking-wide text-muted-foreground border-b">
                           <th className="text-left py-2 pr-3 font-medium">
-                            Data
+                            {t("playerDetail.historyTable.date")}
                           </th>
                           <th className="text-left py-2 pr-3 font-medium">
-                            Adversário
+                            {t("playerDetail.historyTable.opponent")}
                           </th>
                           <th className="text-center py-2 pr-3 font-medium">
-                            Resultado
+                            {t("playerDetail.historyTable.result")}
                           </th>
                           <th className="text-right py-2 pr-3 font-medium">
-                            Kill%
+                            {t("playerDetail.historyTable.killPct")}
                           </th>
                           <th className="text-right py-2 pr-3 font-medium">
-                            Eff
+                            {t("playerDetail.historyTable.eff")}
                           </th>
                           <th className="text-right py-2 pr-3 font-medium">
-                            Pass
+                            {t("playerDetail.historyTable.pass")}
                           </th>
                           <th className="text-right py-2 pr-3 font-medium">
-                            Aces
+                            {t("playerDetail.historyTable.aces")}
                           </th>
                           <th className="text-right py-2 font-medium">
-                            Blocks
+                            {t("playerDetail.historyTable.blocks")}
                           </th>
                         </tr>
                       </thead>
@@ -553,7 +533,7 @@ export default function PlayerDetail() {
                               >
                                 <td className="py-2 pr-3 tabular-nums text-muted-foreground">
                                   {new Date(m.date).toLocaleDateString(
-                                    "pt-PT",
+                                    undefined,
                                     { day: "2-digit", month: "2-digit" },
                                   )}
                                 </td>
@@ -603,13 +583,11 @@ export default function PlayerDetail() {
                 </Card>
               )}
 
-              {/* Trend chart in history tab too */}
               {summary!.trend.length >= 2 && (
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2 text-sm">
-                      <TrendingUp className="h-4 w-4" /> Evolução ao longo dos
-                      jogos
+                      <TrendingUp className="h-4 w-4" /> {t("playerDetail.trendEvolution")}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -619,13 +597,12 @@ export default function PlayerDetail() {
               )}
             </TabsContent>
 
-            {/* ── Treino ─────────────────────────────────────────────── */}
+            {/* ── Training ─────────────────────────────────────────────── */}
             <TabsContent value="training">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between gap-2">
                   <CardTitle className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4" /> Recomendações de treino
-                    (IA)
+                    <Sparkles className="h-4 w-4" /> {t("playerDetail.trainingTitle")}
                   </CardTitle>
                   <Button
                     size="sm"
@@ -636,11 +613,11 @@ export default function PlayerDetail() {
                   >
                     {generate.isPending ? (
                       <>
-                        <Loader2 className="h-4 w-4 animate-spin" /> A gerar…
+                        <Loader2 className="h-4 w-4 animate-spin" /> {t("playerDetail.generating")}
                       </>
                     ) : (
                       <>
-                        <Sparkles className="h-4 w-4" /> Gerar recomendações
+                        <Sparkles className="h-4 w-4" /> {t("playerDetail.generateRecs")}
                       </>
                     )}
                   </Button>
@@ -648,13 +625,12 @@ export default function PlayerDetail() {
                 <CardContent className="space-y-3">
                   {generate.isError && (
                     <div className="text-sm text-red-500">
-                      Falha ao gerar recomendações. Tenta novamente.
+                      {t("playerDetail.generateError")}
                     </div>
                   )}
                   {summary!.actions === 0 && (
                     <div className="text-sm text-muted-foreground">
-                      Sem acções scouted para esta atleta — regista jogos no
-                      Live Scout para desbloquear recomendações.
+                      {t("playerDetail.noActionsForTraining")}
                     </div>
                   )}
                   {logsQuery.isLoading ? (
@@ -662,9 +638,7 @@ export default function PlayerDetail() {
                   ) : logs.length === 0 ? (
                     summary!.actions > 0 && (
                       <div className="text-sm text-muted-foreground">
-                        Ainda não há recomendações. Clica em "Gerar
-                        recomendações" para produzir um plano baseado nos KPIs
-                        acima.
+                        {t("playerDetail.noRecs")}
                       </div>
                     )
                   ) : (
@@ -702,19 +676,20 @@ function EmptySection({
 }
 
 function Legend() {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-wrap gap-3 mt-2 text-[11px] text-muted-foreground">
       <span className="inline-flex items-center gap-1">
         <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-        Positivo
+        {t("playerDetail.legend.positive")}
       </span>
       <span className="inline-flex items-center gap-1">
         <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
-        Neutro
+        {t("playerDetail.legend.neutral")}
       </span>
       <span className="inline-flex items-center gap-1">
         <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
-        Erro / bloqueado
+        {t("playerDetail.legend.errorBlocked")}
       </span>
     </div>
   );
@@ -729,9 +704,10 @@ function DeltaBadge({
   teamVal: number;
   higherIsBetter?: boolean;
 }) {
+  const { t } = useTranslation();
   if (teamVal === 0) return null;
   const diff = playerVal - teamVal;
-  const threshold = teamVal * 0.05; // 5% tolerance
+  const threshold = teamVal * 0.05;
   if (Math.abs(diff) < threshold && Math.abs(diff) < 1) return null;
 
   const positive = higherIsBetter ? diff > 0 : diff < 0;
@@ -741,7 +717,7 @@ function DeltaBadge({
     return (
       <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
         <Minus className="h-2.5 w-2.5" />
-        média
+        {t("playerDetail.avg")}
       </span>
     );
   }
@@ -757,7 +733,7 @@ function DeltaBadge({
       ) : (
         <ArrowDown className="h-2.5 w-2.5" />
       )}
-      vs equipa
+      {t("playerDetail.vsTeam")}
     </span>
   );
 }
@@ -859,6 +835,7 @@ function TrendChart({ data }: { data: TrendEntry[] }) {
 }
 
 function RecommendationCard({ log }: { log: TrainingLog }) {
+  const { t } = useTranslation();
   const r = log.rec;
   const totalMin = r.drills.reduce((acc, d) => acc + d.durationMin, 0);
   return (
@@ -867,15 +844,11 @@ function RecommendationCard({ log }: { log: TrainingLog }) {
         <div>
           <div className="font-semibold">{r.title}</div>
           <div className="text-xs text-muted-foreground mt-0.5">
-            Foco: {FOCUS_LABEL[r.focus]} · {totalMin} min total
+            {t("playerDetail.focusLabel", { focus: t(`playerDetail.trainingFocus.${r.focus}`), min: totalMin })}
           </div>
         </div>
         <Badge className={PRIORITY_STYLE[r.priority]}>
-          {r.priority === "high"
-            ? "Alta"
-            : r.priority === "medium"
-              ? "Média"
-              : "Baixa"}
+          {t(`playerDetail.priority.${r.priority}`)}
         </Badge>
       </div>
       <p className="text-sm text-muted-foreground">{r.rationale}</p>

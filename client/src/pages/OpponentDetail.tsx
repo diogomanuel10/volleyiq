@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
   Edit3,
@@ -40,18 +41,10 @@ import type {
   Match,
 } from "@shared/schema";
 
-const POSITION_LABEL: Record<Position, string> = {
-  OH: "Ponta",
-  OPP: "Oposto",
-  MB: "Central",
-  S: "Distribuidor",
-  L: "Líbero",
-  DS: "Defensivo",
-};
-
 type Tab = "info" | "roster" | "staff" | "history";
 
 export default function OpponentDetail() {
+  const { t } = useTranslation();
   const [, params] = useRoute<{ id: string }>("/opponents/:id");
   const [, setLocation] = useLocation();
   const { team } = useTeam();
@@ -70,12 +63,12 @@ export default function OpponentDetail() {
     mutationFn: () =>
       api.delete(`/api/opponents/${id}?teamId=${team!.id}`),
     onSuccess: () => {
-      toast.success("Adversário removido");
+      toast.success(t("opponentDetail.deleted"));
       qc.invalidateQueries({ queryKey: ["opponents", team?.id] });
       setLocation("/opponents");
     },
     onError: (err) =>
-      toast.error(err instanceof Error ? err.message : "Falha a remover"),
+      toast.error(err instanceof Error ? err.message : t("opponentDetail.deleteError")),
   });
 
   if (!team || !id) return null;
@@ -98,7 +91,7 @@ export default function OpponentDetail() {
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" />
-        Adversários
+        {t("opponentDetail.backToOpponents")}
       </Link>
 
       <header className="flex flex-wrap items-start justify-between gap-4">
@@ -115,7 +108,7 @@ export default function OpponentDetail() {
             <div className="text-sm text-muted-foreground truncate">
               {[opp.club, opp.category, opp.division]
                 .filter(Boolean)
-                .join(" · ") || "Sem dados adicionais"}
+                .join(" · ") || t("opponentDetail.noAdditionalData")}
             </div>
           </div>
         </div>
@@ -124,7 +117,7 @@ export default function OpponentDetail() {
           <Button
             variant="outline"
             onClick={() => {
-              if (confirm(`Remover '${opp.name}'?`))
+              if (confirm(t("opponentDetail.deleteConfirm", { name: opp.name })))
                 deleteMutation.mutate();
             }}
           >
@@ -150,11 +143,12 @@ function TabBar({
   tab: Tab;
   onChange: (t: Tab) => void;
 }) {
+  const { t } = useTranslation();
   const items: Array<{ id: Tab; label: string; icon: typeof Users }> = [
-    { id: "info", label: "Info", icon: BookOpen },
-    { id: "roster", label: "Plantel", icon: Users },
-    { id: "staff", label: "Equipa técnica", icon: UserCog },
-    { id: "history", label: "Histórico", icon: ClipboardList },
+    { id: "info", label: t("opponentDetail.tabs.info"), icon: BookOpen },
+    { id: "roster", label: t("opponentDetail.tabs.roster"), icon: Users },
+    { id: "staff", label: t("opponentDetail.tabs.staff"), icon: UserCog },
+    { id: "history", label: t("opponentDetail.tabs.history"), icon: ClipboardList },
   ];
   return (
     <div className="border-b flex gap-1 overflow-x-auto">
@@ -178,15 +172,16 @@ function TabBar({
 }
 
 function InfoTab({ opp }: { opp: OpponentTeam }) {
+  const { t } = useTranslation();
   return (
     <Card>
       <CardContent className="p-6 space-y-4">
-        <Field label="Nome" value={opp.name} />
-        <Field label="Clube" value={opp.club ?? "—"} />
-        <Field label="Escalão" value={opp.category ?? "—"} />
-        <Field label="Divisão" value={opp.division ?? "—"} />
+        <Field label={t("opponentDetail.info.name")} value={opp.name} />
+        <Field label={t("opponentDetail.info.club")} value={opp.club ?? "—"} />
+        <Field label={t("opponentDetail.info.category")} value={opp.category ?? "—"} />
+        <Field label={t("opponentDetail.info.division")} value={opp.division ?? "—"} />
         <div>
-          <div className="text-xs text-muted-foreground mb-1">Cor principal</div>
+          <div className="text-xs text-muted-foreground mb-1">{t("opponentDetail.info.primaryColor")}</div>
           <div className="flex items-center gap-2">
             <div
               className="h-6 w-6 rounded-md border"
@@ -198,7 +193,7 @@ function InfoTab({ opp }: { opp: OpponentTeam }) {
             </span>
           </div>
         </div>
-        <Field label="Notas" value={opp.notes ?? "—"} multiline />
+        <Field label={t("opponentDetail.info.notes")} value={opp.notes ?? "—"} multiline />
       </CardContent>
     </Card>
   );
@@ -230,6 +225,7 @@ function RosterTab({
   opponentTeamId: string;
   teamId: string;
 }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<OpponentPlayer | null>(null);
@@ -248,7 +244,7 @@ function RosterTab({
         `/api/opponents/${opponentTeamId}/players/${id}?teamId=${teamId}`,
       ),
     onSuccess: () => {
-      toast.success("Jogadora removida");
+      toast.success(t("opponentDetail.roster.deleted"));
       qc.invalidateQueries({ queryKey: ["opponent-roster", opponentTeamId] });
     },
   });
@@ -259,7 +255,7 @@ function RosterTab({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {items.length} jogador(a)(s) no plantel catalogado
+          {t("opponentDetail.roster.count", { count: items.length })}
         </p>
         <Dialog
           open={dialogOpen}
@@ -270,7 +266,7 @@ function RosterTab({
         >
           <DialogTrigger asChild>
             <Button size="sm">
-              <Plus className="h-4 w-4" /> Adicionar
+              <Plus className="h-4 w-4" /> {t("opponentDetail.roster.addButton")}
             </Button>
           </DialogTrigger>
           <OpponentPlayerDialog
@@ -293,7 +289,7 @@ function RosterTab({
       ) : items.length === 0 ? (
         <Card>
           <CardContent className="p-10 text-center text-muted-foreground">
-            Sem plantel catalogado ainda.
+            {t("opponentDetail.roster.empty")}
           </CardContent>
         </Card>
       ) : (
@@ -301,11 +297,11 @@ function RosterTab({
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="px-3 py-2 text-left">#</th>
-                <th className="px-3 py-2 text-left">Nome</th>
-                <th className="px-3 py-2 text-left">Posição</th>
-                <th className="px-3 py-2 text-left">Altura</th>
-                <th className="px-3 py-2 text-left">Notas</th>
+                <th className="px-3 py-2 text-left">{t("opponentDetail.roster.number")}</th>
+                <th className="px-3 py-2 text-left">{t("opponentDetail.roster.name")}</th>
+                <th className="px-3 py-2 text-left">{t("opponentDetail.roster.position")}</th>
+                <th className="px-3 py-2 text-left">{t("opponentDetail.roster.height")}</th>
+                <th className="px-3 py-2 text-left">{t("opponentDetail.roster.notes")}</th>
                 <th className="px-3 py-2 w-16"></th>
               </tr>
             </thead>
@@ -319,7 +315,7 @@ function RosterTab({
                     {p.firstName} {p.lastName}
                   </td>
                   <td className="px-3 py-2">
-                    {p.position ? POSITION_LABEL[p.position] : "—"}
+                    {p.position ? t(`players.positions.${p.position}`) : "—"}
                   </td>
                   <td className="px-3 py-2">
                     {p.heightCm ? `${p.heightCm} cm` : "—"}
@@ -343,7 +339,7 @@ function RosterTab({
                         variant="ghost"
                         size="icon"
                         onClick={() => {
-                          if (confirm(`Remover ${p.firstName} ${p.lastName}?`))
+                          if (confirm(t("opponentDetail.roster.deleteConfirm", { firstName: p.firstName, lastName: p.lastName })))
                             deleteMutation.mutate(p.id);
                         }}
                       >
@@ -372,6 +368,7 @@ function OpponentPlayerDialog({
   editing: OpponentPlayer | null;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [firstName, setFirstName] = useState(editing?.firstName ?? "");
   const [lastName, setLastName] = useState(editing?.lastName ?? "");
   const [number, setNumber] = useState<string>(
@@ -407,18 +404,18 @@ function OpponentPlayerDialog({
       );
     },
     onSuccess: () => {
-      toast.success(editing ? "Actualizado" : "Adicionado");
+      toast.success(editing ? t("opponentDetail.playerDialog.updated") : t("opponentDetail.playerDialog.added"));
       onSaved();
     },
     onError: (err) =>
-      toast.error(err instanceof Error ? err.message : "Falha a gravar"),
+      toast.error(err instanceof Error ? err.message : t("opponentDetail.playerDialog.saveError")),
   });
 
   return (
     <DialogContent>
       <DialogHeader>
         <DialogTitle>
-          {editing ? "Editar jogador" : "Novo jogador (adversário)"}
+          {editing ? t("opponentDetail.playerDialog.titleEdit") : t("opponentDetail.playerDialog.titleNew")}
         </DialogTitle>
       </DialogHeader>
       <form
@@ -426,7 +423,7 @@ function OpponentPlayerDialog({
         onSubmit={(e) => {
           e.preventDefault();
           if (!firstName.trim() || !lastName.trim()) {
-            toast.error("Nome e apelido são obrigatórios");
+            toast.error(t("opponentDetail.playerDialog.nameRequired"));
             return;
           }
           save.mutate();
@@ -434,7 +431,7 @@ function OpponentPlayerDialog({
       >
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="op-fn">Nome</Label>
+            <Label htmlFor="op-fn">{t("opponentDetail.playerDialog.firstName")}</Label>
             <Input
               id="op-fn"
               value={firstName}
@@ -443,7 +440,7 @@ function OpponentPlayerDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="op-ln">Apelido</Label>
+            <Label htmlFor="op-ln">{t("opponentDetail.playerDialog.lastName")}</Label>
             <Input
               id="op-ln"
               value={lastName}
@@ -454,7 +451,7 @@ function OpponentPlayerDialog({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="op-num">Número</Label>
+            <Label htmlFor="op-num">{t("opponentDetail.playerDialog.number")}</Label>
             <Input
               id="op-num"
               type="number"
@@ -462,27 +459,27 @@ function OpponentPlayerDialog({
               max={99}
               value={number}
               onChange={(e) => setNumber(e.target.value)}
-              placeholder="Opcional"
+              placeholder={t("opponentDetail.playerDialog.numberOptional")}
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="op-pos">Posição</Label>
+            <Label htmlFor="op-pos">{t("opponentDetail.playerDialog.position")}</Label>
             <Select
               id="op-pos"
               value={position}
               onChange={(e) => setPosition(e.target.value as Position | "")}
             >
-              <option value="">— opcional —</option>
+              <option value="">{t("opponentDetail.playerDialog.positionOptional")}</option>
               {POSITIONS.map((p) => (
                 <option key={p} value={p}>
-                  {POSITION_LABEL[p]}
+                  {t(`players.positions.${p}`)}
                 </option>
               ))}
             </Select>
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="op-h">Altura (cm, opcional)</Label>
+          <Label htmlFor="op-h">{t("opponentDetail.playerDialog.height")}</Label>
           <Input
             id="op-h"
             type="number"
@@ -493,7 +490,7 @@ function OpponentPlayerDialog({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="op-nt">Notas</Label>
+          <Label htmlFor="op-nt">{t("opponentDetail.playerDialog.notes")}</Label>
           <Textarea
             id="op-nt"
             value={notes}
@@ -503,7 +500,7 @@ function OpponentPlayerDialog({
         </div>
         <DialogFooter>
           <Button type="submit" disabled={save.isPending}>
-            {editing ? "Guardar" : "Adicionar"}
+            {editing ? t("opponentDetail.playerDialog.save") : t("opponentDetail.playerDialog.add")}
           </Button>
         </DialogFooter>
       </form>
@@ -520,6 +517,7 @@ function StaffTab({
   opponentTeamId: string;
   teamId: string;
 }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<OpponentCoach | null>(null);
@@ -538,7 +536,7 @@ function StaffTab({
         `/api/opponents/${opponentTeamId}/coaches/${id}?teamId=${teamId}`,
       ),
     onSuccess: () => {
-      toast.success("Elemento removido");
+      toast.success(t("opponentDetail.staff.deleted"));
       qc.invalidateQueries({ queryKey: ["opponent-staff", opponentTeamId] });
     },
   });
@@ -549,7 +547,7 @@ function StaffTab({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {items.length} elemento(s) de equipa técnica
+          {t("opponentDetail.staff.count", { count: items.length })}
         </p>
         <Dialog
           open={dialogOpen}
@@ -560,7 +558,7 @@ function StaffTab({
         >
           <DialogTrigger asChild>
             <Button size="sm">
-              <Plus className="h-4 w-4" /> Adicionar
+              <Plus className="h-4 w-4" /> {t("opponentDetail.staff.addButton")}
             </Button>
           </DialogTrigger>
           <OpponentCoachDialog
@@ -583,7 +581,7 @@ function StaffTab({
       ) : items.length === 0 ? (
         <Card>
           <CardContent className="p-10 text-center text-muted-foreground">
-            Sem equipa técnica catalogada.
+            {t("opponentDetail.staff.empty")}
           </CardContent>
         </Card>
       ) : (
@@ -619,7 +617,7 @@ function StaffTab({
                     variant="ghost"
                     size="icon"
                     onClick={() => {
-                      if (confirm(`Remover ${c.name}?`))
+                      if (confirm(t("opponentDetail.staff.deleteConfirm", { name: c.name })))
                         deleteMutation.mutate(c.id);
                     }}
                   >
@@ -646,6 +644,7 @@ function OpponentCoachDialog({
   editing: OpponentCoach | null;
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [name, setName] = useState(editing?.name ?? "");
   const [role, setRole] = useState(editing?.role ?? "");
   const [notes, setNotes] = useState(editing?.notes ?? "");
@@ -669,18 +668,18 @@ function OpponentCoachDialog({
       );
     },
     onSuccess: () => {
-      toast.success(editing ? "Actualizado" : "Adicionado");
+      toast.success(editing ? t("opponentDetail.coachDialog.updated") : t("opponentDetail.coachDialog.added"));
       onSaved();
     },
     onError: (err) =>
-      toast.error(err instanceof Error ? err.message : "Falha a gravar"),
+      toast.error(err instanceof Error ? err.message : t("opponentDetail.coachDialog.saveError")),
   });
 
   return (
     <DialogContent>
       <DialogHeader>
         <DialogTitle>
-          {editing ? "Editar membro da equipa técnica" : "Novo elemento"}
+          {editing ? t("opponentDetail.coachDialog.titleEdit") : t("opponentDetail.coachDialog.titleNew")}
         </DialogTitle>
       </DialogHeader>
       <form
@@ -688,14 +687,14 @@ function OpponentCoachDialog({
         onSubmit={(e) => {
           e.preventDefault();
           if (!name.trim()) {
-            toast.error("Nome é obrigatório");
+            toast.error(t("opponentDetail.coachDialog.nameRequired"));
             return;
           }
           save.mutate();
         }}
       >
         <div className="space-y-1.5">
-          <Label htmlFor="oc-name">Nome</Label>
+          <Label htmlFor="oc-name">{t("opponentDetail.coachDialog.name")}</Label>
           <Input
             id="oc-name"
             value={name}
@@ -705,16 +704,16 @@ function OpponentCoachDialog({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="oc-role">Função</Label>
+          <Label htmlFor="oc-role">{t("opponentDetail.coachDialog.role")}</Label>
           <Input
             id="oc-role"
             value={role}
             onChange={(e) => setRole(e.target.value)}
-            placeholder="Ex: Treinador principal, Adjunto, Preparador físico"
+            placeholder={t("opponentDetail.coachDialog.rolePlaceholder")}
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="oc-notes">Notas</Label>
+          <Label htmlFor="oc-notes">{t("opponentDetail.coachDialog.notes")}</Label>
           <Textarea
             id="oc-notes"
             value={notes}
@@ -724,7 +723,7 @@ function OpponentCoachDialog({
         </div>
         <DialogFooter>
           <Button type="submit" disabled={save.isPending}>
-            {editing ? "Guardar" : "Adicionar"}
+            {editing ? t("opponentDetail.coachDialog.save") : t("opponentDetail.coachDialog.add")}
           </Button>
         </DialogFooter>
       </form>

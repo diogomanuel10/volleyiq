@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Undo2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { LoggedAction } from "@/hooks/useScoutState";
 import type { Player } from "@shared/schema";
 import {
@@ -21,6 +22,7 @@ export function ActionLog({
   onUndo: () => void;
   pendingSync?: number;
 }) {
+  const { t } = useTranslation();
   const byId = new Map(players.map((p) => [p.id, p]));
   const recent = [...log].slice(-12).reverse();
 
@@ -29,12 +31,12 @@ export function ActionLog({
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <div className="text-xs font-semibold tracking-wide uppercase text-muted-foreground">
-            Log ({log.length})
+            {t("livescout.log")} ({log.length})
           </div>
           {pendingSync > 0 && (
             <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400">
               <Loader2 className="h-3 w-3 animate-spin" />
-              a guardar…
+              {t("livescout.saving")}
             </span>
           )}
         </div>
@@ -44,7 +46,7 @@ export function ActionLog({
           onClick={onUndo}
           disabled={!log.length}
         >
-          <Undo2 className="h-3.5 w-3.5" /> Undo
+          <Undo2 className="h-3.5 w-3.5" /> {t("livescout.undo")}
         </Button>
       </div>
 
@@ -97,9 +99,9 @@ export function ActionLog({
         </AnimatePresence>
         {!recent.length && (
           <div className="text-xs text-muted-foreground text-center py-8 space-y-1">
-            <p>Ainda sem acções registadas.</p>
+            <p>{t("livescout.logEmpty")}</p>
             <p className="text-[11px]">
-              Toca numa jogadora ou digita o nº de camisola para começar.
+              {t("livescout.logEmptyHint")}
             </p>
           </div>
         )}

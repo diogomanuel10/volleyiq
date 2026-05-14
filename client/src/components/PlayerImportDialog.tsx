@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { Download, FileSpreadsheet, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +34,7 @@ export function PlayerImportDialog({
   teamId,
   existingNumbers,
 }: Props) {
+  const { t } = useTranslation();
   const [rows, setRows] = useState<RawRow[]>([]);
   const [result, setResult] = useState<ValidationResult | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -43,7 +45,7 @@ export function PlayerImportDialog({
   const importMutation = useMutation({
     mutationFn: async () => {
       if (!result || result.valid.length === 0)
-        throw new Error("Nada para importar");
+        throw new Error(t("importDialog.player.nothingToImport"));
       return api.post<{ inserted: number; players: Player[] }>(
         "/api/players/bulk",
         {
@@ -53,13 +55,13 @@ export function PlayerImportDialog({
       );
     },
     onSuccess: (data) => {
-      toast.success(`${data.inserted} jogador(es) importado(s)`);
+      toast.success(t("importDialog.player.imported", { count: data.inserted }));
       qc.invalidateQueries({ queryKey: ["players", teamId] });
       reset();
       onOpenChange(false);
     },
     onError: (err) =>
-      toast.error("Import falhou", {
+      toast.error(t("importDialog.player.importError"), {
         description: err instanceof Error ? err.message : String(err),
       }),
   });
@@ -80,10 +82,10 @@ export function PlayerImportDialog({
       setRows(parsed);
       setResult(validateRows(parsed, existingNumbers));
       if (parsed.length === 0) {
-        toast.warning("Ficheiro vazio ou sem dados reconhecíveis");
+        toast.warning(t("importDialog.player.emptyFile"));
       }
     } catch (err) {
-      toast.error("Não consegui ler o ficheiro", {
+      toast.error(t("importDialog.player.readError"), {
         description: err instanceof Error ? err.message : String(err),
       });
       reset();
@@ -122,14 +124,12 @@ export function PlayerImportDialog({
     >
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Importar jogadores</DialogTitle>
+          <DialogTitle>{t("importDialog.player.title")}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Suporta CSV, XLS e XLSX. Começa pelo template se não tens ainda um
-            ficheiro — as colunas obrigatórias são <b>Nome</b>,{" "}
-            <b>Apelido</b>, <b>Número</b> e <b>Posição</b>.
+            {t("importDialog.player.description")}
           </p>
 
           <div className="flex flex-wrap gap-2">
@@ -140,7 +140,7 @@ export function PlayerImportDialog({
               onClick={() => downloadTemplate()}
             >
               <Download className="h-4 w-4" />
-              Descarregar template (CSV)
+              {t("importDialog.player.downloadTemplate")}
             </Button>
             <Button
               type="button"
@@ -150,7 +150,7 @@ export function PlayerImportDialog({
               disabled={parsing || importMutation.isPending}
             >
               <Upload className="h-4 w-4" />
-              Escolher ficheiro
+              {t("importDialog.player.chooseFile")}
             </Button>
             {fileName && (
               <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
@@ -160,7 +160,7 @@ export function PlayerImportDialog({
                   type="button"
                   onClick={reset}
                   className="hover:text-foreground"
-                  aria-label="Remover ficheiro"
+                  aria-label={t("importDialog.player.removeFile")}
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -194,12 +194,12 @@ export function PlayerImportDialog({
                   <thead className="bg-muted sticky top-0">
                     <tr>
                       <th className="px-2 py-1.5 text-left">#</th>
-                      <th className="px-2 py-1.5 text-left">Nome</th>
-                      <th className="px-2 py-1.5 text-left">Apelido</th>
-                      <th className="px-2 py-1.5 text-left">Nº</th>
-                      <th className="px-2 py-1.5 text-left">Pos.</th>
-                      <th className="px-2 py-1.5 text-left">Altura</th>
-                      <th className="px-2 py-1.5 text-left">Estado</th>
+                      <th className="px-2 py-1.5 text-left">{t("players.dialog.firstName")}</th>
+                      <th className="px-2 py-1.5 text-left">{t("players.dialog.lastName")}</th>
+                      <th className="px-2 py-1.5 text-left">{t("players.dialog.number")}</th>
+                      <th className="px-2 py-1.5 text-left">{t("players.dialog.position")}</th>
+                      <th className="px-2 py-1.5 text-left">{t("importDialog.player.height")}</th>
+                      <th className="px-2 py-1.5 text-left">{t("importDialog.player.status")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -264,7 +264,7 @@ export function PlayerImportDialog({
             onClick={() => onOpenChange(false)}
             disabled={importMutation.isPending}
           >
-            Cancelar
+            {t("common.cancel")}
           </Button>
           <Button
             type="button"
@@ -277,10 +277,10 @@ export function PlayerImportDialog({
             }
           >
             {importMutation.isPending
-              ? "A importar…"
+              ? t("importDialog.player.importing")
               : result
-                ? `Importar ${result.valid.length} jogador(es)`
-                : "Importar"}
+                ? t("importDialog.player.import", { count: result.valid.length })
+                : t("importDialog.player.importDefault")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -299,22 +299,23 @@ function Summary({
   warnings: number;
   total: number;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-wrap gap-4 text-sm">
       <span>
-        <b>{total}</b> linha(s) lida(s)
+        <b>{total}</b> {t("importDialog.player.rowsRead")}
       </span>
       <span className="text-emerald-600 dark:text-emerald-400">
-        <b>{valid}</b> válida(s)
+        <b>{valid}</b> {t("importDialog.player.valid")}
       </span>
       {errors > 0 && (
         <span className="text-destructive">
-          <b>{errors}</b> erro(s)
+          <b>{errors}</b> {t("importDialog.player.errors")}
         </span>
       )}
       {warnings > 0 && (
         <span className="text-amber-600 dark:text-amber-400">
-          <b>{warnings}</b> aviso(s)
+          <b>{warnings}</b> {t("importDialog.player.warnings")}
         </span>
       )}
     </div>
