@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import {
   TrendingUp,
   Target,
@@ -120,6 +121,7 @@ const MOCK: DashboardStats = {
 
 export default function Dashboard() {
   const { team } = useTeam();
+  const { t } = useTranslation();
 
   const statsQuery = useQuery({
     queryKey: ["stats", team?.id],
@@ -190,19 +192,19 @@ export default function Dashboard() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-            Dashboard
+            {t("dashboard.title")}
           </h1>
           <p className="text-muted-foreground text-sm">
-            Vista-resumo das últimas 6 jornadas · {team.name}
+            {t("dashboard.subtitle", { team: team.name })}
           </p>
         </div>
         {isEmpty || !real ? (
           <Badge variant="outline" className="gap-1">
-            <Database className="h-3 w-3" /> Exemplo
+            <Database className="h-3 w-3" /> {t("dashboard.exampleBadge")}
           </Badge>
         ) : (
           <Badge variant="success" className="gap-1">
-            <TrendingUp className="h-3 w-3" /> {real.sampleActions} acções
+            <TrendingUp className="h-3 w-3" /> {t("dashboard.actionsBadge", { count: real.sampleActions })}
           </Badge>
         )}
       </header>
@@ -272,7 +274,7 @@ export default function Dashboard() {
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
           <CardHeader>
-            <CardTitle>Tendência — últimas 6 jornadas</CardTitle>
+            <CardTitle>{t("dashboard.trend")}</CardTitle>
           </CardHeader>
           <CardContent>
             {statsQuery.isLoading ? (
@@ -284,7 +286,7 @@ export default function Dashboard() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Perfil da equipa</CardTitle>
+            <CardTitle>{t("dashboard.teamProfile")}</CardTitle>
           </CardHeader>
           <CardContent>
             {statsQuery.isLoading ? (
@@ -298,10 +300,9 @@ export default function Dashboard() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Side-Out % por rotação</CardTitle>
+          <CardTitle>{t("dashboard.sideOutByRotation")}</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Rotações a vermelho precisam de atenção; verdes são o teu ponto
-            forte.
+            {t("dashboard.sideOutNote")}
           </p>
         </CardHeader>
         <CardContent>
@@ -316,10 +317,9 @@ export default function Dashboard() {
       {!statsQuery.isLoading && stats.rotationStats.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Rotações — toda a época</CardTitle>
+            <CardTitle>{t("dashboard.rotationsTitle")}</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Sideout (recepção) e Break-point (serviço) acumulados em todos
-              os jogos da equipa, não apenas os 6 mais recentes.
+              {t("dashboard.rotationsNote")}
             </p>
           </CardHeader>
           <CardContent>
@@ -327,10 +327,10 @@ export default function Dashboard() {
               <table className="w-full text-sm">
                 <thead className="bg-muted">
                   <tr>
-                    <th className="px-3 py-2 text-left">Rotação</th>
-                    <th className="px-3 py-2 text-right">Total</th>
-                    <th className="px-3 py-2 text-right">SO%</th>
-                    <th className="px-3 py-2 text-right">BP%</th>
+                    <th className="px-3 py-2 text-left">{t("dashboard.table.rotation")}</th>
+                    <th className="px-3 py-2 text-right">{t("dashboard.table.total")}</th>
+                    <th className="px-3 py-2 text-right">{t("dashboard.table.soPct")}</th>
+                    <th className="px-3 py-2 text-right">{t("dashboard.table.bpPct")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -381,9 +381,9 @@ export default function Dashboard() {
         {!statsQuery.isLoading && stats.topScorers.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Top atletas — pontos directos</CardTitle>
+              <CardTitle>{t("dashboard.topScorers")}</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Soma de kills + aces + stuff blocks na época.
+                {t("dashboard.topScorersNote")}
               </p>
             </CardHeader>
             <CardContent>
@@ -391,13 +391,13 @@ export default function Dashboard() {
                 <table className="w-full text-sm">
                   <thead className="bg-muted">
                     <tr>
-                      <th className="px-3 py-2 text-left">#</th>
-                      <th className="px-3 py-2 text-left">Atleta</th>
-                      <th className="px-3 py-2 text-right">Pts</th>
-                      <th className="px-3 py-2 text-right">K</th>
-                      <th className="px-3 py-2 text-right">A</th>
-                      <th className="px-3 py-2 text-right">B</th>
-                      <th className="px-3 py-2 text-right">Jogos</th>
+                      <th className="px-3 py-2 text-left">{t("dashboard.table.number")}</th>
+                      <th className="px-3 py-2 text-left">{t("dashboard.table.athlete")}</th>
+                      <th className="px-3 py-2 text-right">{t("dashboard.table.points")}</th>
+                      <th className="px-3 py-2 text-right">{t("dashboard.table.kills")}</th>
+                      <th className="px-3 py-2 text-right">{t("dashboard.table.aces")}</th>
+                      <th className="px-3 py-2 text-right">{t("dashboard.table.blocks")}</th>
+                      <th className="px-3 py-2 text-right">{t("dashboard.table.games")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -439,10 +439,9 @@ export default function Dashboard() {
         {!statsQuery.isLoading && stats.opponentBreakdown.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Adversários — registo</CardTitle>
+              <CardTitle>{t("dashboard.opponentRecord")}</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Vitórias/derrotas e sets contra cada adversário (apenas
-                jogos terminados).
+                {t("dashboard.opponentRecordNote")}
               </p>
             </CardHeader>
             <CardContent>
@@ -450,10 +449,10 @@ export default function Dashboard() {
                 <table className="w-full text-sm">
                   <thead className="bg-muted">
                     <tr>
-                      <th className="px-3 py-2 text-left">Adversário</th>
-                      <th className="px-3 py-2 text-right">Jogos</th>
-                      <th className="px-3 py-2 text-right">V-D</th>
-                      <th className="px-3 py-2 text-right">Sets</th>
+                      <th className="px-3 py-2 text-left">{t("dashboard.table.opponent")}</th>
+                      <th className="px-3 py-2 text-right">{t("dashboard.table.games")}</th>
+                      <th className="px-3 py-2 text-right">{t("dashboard.table.wins")}</th>
+                      <th className="px-3 py-2 text-right">{t("dashboard.table.sets")}</th>
                     </tr>
                   </thead>
                   <tbody>

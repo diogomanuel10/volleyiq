@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
   Sparkles,
@@ -42,15 +43,20 @@ interface ScoutingAggregation {
   rotationSideOut: Array<{ rotation: string; pct: number }>;
 }
 
-const CATEGORY_META: Record<
-  DetectedPattern["category"],
-  { label: string; icon: React.ComponentType<{ className?: string }>; tint: string }
-> = {
-  serve: { label: "Serviço", icon: Send, tint: "bg-sky-500" },
-  attack: { label: "Ataque", icon: Target, tint: "bg-emerald-500" },
-  rotation: { label: "Rotação", icon: RotateCw, tint: "bg-amber-500" },
-  setter: { label: "Distribuidor", icon: Hand, tint: "bg-purple-500" },
-  reception: { label: "Recepção", icon: User, tint: "bg-rose-500" },
+const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  serve: Send,
+  attack: Target,
+  rotation: RotateCw,
+  setter: Hand,
+  reception: User,
+};
+
+const CATEGORY_TINT: Record<string, string> = {
+  serve: "bg-sky-500",
+  attack: "bg-emerald-500",
+  rotation: "bg-amber-500",
+  setter: "bg-purple-500",
+  reception: "bg-rose-500",
 };
 
 export default function ScoutingReport() {
@@ -71,6 +77,7 @@ export default function ScoutingReport() {
 }
 
 function OpponentPicker({ teamId }: { teamId: string }) {
+  const { t } = useTranslation();
   const matchesQuery = useQuery({
     queryKey: ["matches", teamId],
     queryFn: () => api.get<Match[]>(`/api/matches?teamId=${teamId}`),
@@ -96,10 +103,10 @@ function OpponentPicker({ teamId }: { teamId: string }) {
     <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-4">
       <header>
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-          Scouting Reports
+          {t("scoutingReport.title")}
         </h1>
         <p className="text-muted-foreground text-sm">
-          Escolhe um adversário para gerar o relatório com padrões detectados pela IA.
+          {t("scoutingReport.subtitle")}
         </p>
       </header>
 
@@ -108,9 +115,9 @@ function OpponentPicker({ teamId }: { teamId: string }) {
       ) : opponents.length === 0 ? (
         <Card>
           <CardContent className="p-10 text-center text-muted-foreground space-y-3">
-            <p>Ainda sem adversários. Regista jogos primeiro.</p>
+            <p>{t("scoutingReport.noOpponents")}</p>
             <Button asChild variant="outline">
-              <Link href="/matches">Ir para Jogos</Link>
+              <Link href="/matches">{t("nav.matches")}</Link>
             </Button>
           </CardContent>
         </Card>
@@ -125,10 +132,9 @@ function OpponentPicker({ teamId }: { teamId: string }) {
               <div className="min-w-0">
                 <div className="font-semibold truncate">{o.opponent}</div>
                 <div className="text-xs text-muted-foreground">
-                  {o.count} jogo(s) · último em{" "}
-                  {o.last.toLocaleDateString("pt-PT", {
-                    day: "2-digit",
-                    month: "short",
+                  {t("scoutingReport.opponentInfo", {
+                    count: o.count,
+                    date: o.last.toLocaleDateString(undefined, { day: "2-digit", month: "short" })
                   })}
                 </div>
               </div>
@@ -150,6 +156,7 @@ function Report({
   teamId: string;
   onBack: () => void;
 }) {
+  const { t } = useTranslation();
   const reportQuery = useQuery({
     queryKey: ["scouting", teamId, opponent],
     queryFn: () =>
@@ -166,8 +173,6 @@ function Report({
     onSuccess: (data) => setPatterns(data.patterns),
   });
 
-  // Dispara detecção automaticamente assim que os dados agregados chegam —
-  // assim o treinador não tem de carregar num botão para ver o relatório.
   useEffect(() => {
     if (!reportQuery.data) return;
     if (patterns) return;
@@ -178,7 +183,7 @@ function Report({
   return (
     <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-5">
       <Button variant="ghost" size="sm" onClick={onBack} className="print-hide">
-        <ArrowLeft className="h-4 w-4" /> Voltar
+        <ArrowLeft className="h-4 w-4" /> {t("common.back")}
       </Button>
 
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -188,15 +193,17 @@ function Report({
             {opponent}
           </h1>
           <p className="text-muted-foreground text-sm">
-            Relatório baseado em todas as acções registadas contra este adversário.
+            {t("scoutingReport.reportSubtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {reportQuery.data && (
             <Badge variant="secondary" className="gap-1">
               <TrendingUp className="h-3 w-3" />
-              {reportQuery.data.sampleMatches} jogo(s) ·{" "}
-              {reportQuery.data.input.sampleSize} acções
+              {t("scoutingReport.sampleInfo", {
+                matches: reportQuery.data.sampleMatches,
+                actions: reportQuery.data.input.sampleSize
+              })}
             </Badge>
           )}
           {reportQuery.data && (
@@ -206,7 +213,7 @@ function Report({
               onClick={() => window.print()}
               className="print-hide"
             >
-              <Printer className="h-4 w-4" /> Exportar PDF
+              <Printer className="h-4 w-4" /> {t("postMatch.print")}
             </Button>
           )}
         </div>
@@ -217,10 +224,7 @@ function Report({
       ) : reportQuery.isError || !reportQuery.data ? (
         <Card>
           <CardContent className="p-10 text-center text-muted-foreground space-y-2">
-            <p>Sem dados registados para {opponent}.</p>
-            <p className="text-xs">
-              Faz Live Scout num jogo contra esta equipa para popular o relatório.
-            </p>
+            <p>{t("scoutingReport.noData")}</p>
           </CardContent>
         </Card>
       ) : (
@@ -229,7 +233,7 @@ function Report({
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" /> Padrões detectados
+                <Sparkles className="h-4 w-4 text-primary" /> {t("scoutingReport.patterns")}
               </h2>
               <Button
                 size="sm"
@@ -240,7 +244,7 @@ function Report({
                 disabled={patternsMutation.isPending}
                 className="print-hide"
               >
-                {patternsMutation.isPending ? "A analisar…" : "Reanalisar"}
+                {patternsMutation.isPending ? t("scoutingReport.analyzing") : t("scoutingReport.reanalyze")}
               </Button>
             </div>
 
@@ -253,7 +257,8 @@ function Report({
             ) : patterns?.length ? (
               <div className="grid md:grid-cols-2 gap-3">
                 {patterns.map((p, idx) => {
-                  const meta = CATEGORY_META[p.category];
+                  const IconComp = CATEGORY_ICONS[p.category] ?? Sparkles;
+                  const tint = CATEGORY_TINT[p.category] ?? "bg-slate-500";
                   return (
                     <motion.div
                       key={p.id}
@@ -265,14 +270,14 @@ function Report({
                         <CardContent className="p-4 space-y-3">
                           <div className="flex items-start gap-3">
                             <div
-                              className={`h-9 w-9 rounded-lg ${meta.tint} text-white grid place-items-center shrink-0`}
+                              className={`h-9 w-9 rounded-lg ${tint} text-white grid place-items-center shrink-0`}
                             >
-                              <meta.icon className="h-4 w-4 text-white" />
+                              <IconComp className="h-4 w-4 text-white" />
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <Badge variant="outline" className="text-[10px]">
-                                  {meta.label}
+                                  {t(`scoutingReport.categories.${p.category}`)}
                                 </Badge>
                                 <span className="text-xs tabular-nums font-medium">
                                   {p.confidence}%
@@ -283,18 +288,18 @@ function Report({
                           </div>
                           <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
                             <div
-                              className={`h-full ${meta.tint}`}
+                              className={`h-full ${tint}`}
                               style={{ width: `${p.confidence}%` }}
                             />
                           </div>
                           <p className="text-xs text-muted-foreground">
                             <span className="font-semibold text-foreground">
-                              Evidência:
+                              {t("scoutingReport.evidence")}:
                             </span>{" "}
                             {p.evidence}
                           </p>
                           <p className="text-xs">
-                            <span className="font-semibold">Recomendação:</span>{" "}
+                            <span className="font-semibold">{t("scoutingReport.recommendation")}:</span>{" "}
                             {p.recommendation}
                           </p>
                         </CardContent>
@@ -306,8 +311,7 @@ function Report({
             ) : (
               <Card>
                 <CardContent className="p-6 text-center text-muted-foreground text-sm">
-                  Sem padrões para este adversário. Adiciona mais acções e tenta
-                  reanalisar.
+                  {t("scoutingReport.noPatterns")}
                 </CardContent>
               </Card>
             )}
@@ -317,9 +321,9 @@ function Report({
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Zonas de serviço</CardTitle>
+                <CardTitle className="text-base">{t("scoutingReport.serveZones")}</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Para onde o adversário costuma servir.
+                  {t("scoutingReport.serveZonesNote")}
                 </p>
               </CardHeader>
               <CardContent>
@@ -328,9 +332,9 @@ function Report({
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Zonas de ataque</CardTitle>
+                <CardTitle className="text-base">{t("scoutingReport.attackZones")}</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Destinos de ataque observados.
+                  {t("scoutingReport.attackZonesNote")}
                 </p>
               </CardHeader>
               <CardContent>
@@ -341,9 +345,9 @@ function Report({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Side-Out % por rotação</CardTitle>
+              <CardTitle className="text-base">{t("scoutingReport.sideOutByRotation")}</CardTitle>
               <p className="text-xs text-muted-foreground">
-                Rotações em que o adversário é mais vulnerável.
+                {t("scoutingReport.sideOutNote")}
               </p>
             </CardHeader>
             <CardContent>
@@ -395,10 +399,11 @@ function ZoneBarChart({
   data: Array<{ zone: string; count: number }>;
   color: string;
 }) {
+  const { t } = useTranslation();
   if (!data.length) {
     return (
       <div className="h-56 grid place-items-center text-xs text-muted-foreground">
-        Sem dados.
+        {t("common.noData")}
       </div>
     );
   }

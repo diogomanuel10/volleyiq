@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, Trash2, Upload, UserCog, Users } from "lucide-react";
@@ -27,17 +28,9 @@ import { POSITIONS, type Position } from "@shared/types";
 import type { Player } from "@shared/schema";
 import { PlayerImportDialog } from "@/components/PlayerImportDialog";
 
-const POSITION_LABEL: Record<Position, string> = {
-  OH: "Ponta",
-  OPP: "Oposto",
-  MB: "Central",
-  S: "Distribuidor",
-  L: "Líbero",
-  DS: "Defensivo",
-};
-
 export default function Players() {
   const { team } = useTeam();
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [positionFilter, setPositionFilter] = useState<"all" | Position>("all");
   const [showInactive, setShowInactive] = useState(false);
@@ -65,10 +58,10 @@ export default function Players() {
     mutationFn: (id: string) =>
       api.delete(`/api/players/${id}?teamId=${team!.id}`),
     onSuccess: () => {
-      toast.success("Jogadora removida");
+      toast.success(t("players.deleted"));
       qc.invalidateQueries({ queryKey: ["players", team?.id] });
     },
-    onError: (err: any) => toast.error(err.message ?? "Falha a remover"),
+    onError: (err: any) => toast.error(err.message ?? t("players.deleteError")),
   });
 
   if (!team) return null;
@@ -77,9 +70,9 @@ export default function Players() {
     <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Jogadores</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{t("players.title")}</h1>
           <p className="text-muted-foreground text-sm">
-            Roster de {team.name} — {filtered.length} jogadora(s)
+            {t("players.subtitle", { team: team.name, count: filtered.length })}
           </p>
         </div>
         <div className="flex gap-2">
@@ -87,7 +80,7 @@ export default function Players() {
             variant="outline"
             onClick={() => setImportOpen(true)}
           >
-            <Upload className="h-4 w-4" /> Importar
+            <Upload className="h-4 w-4" /> {t("players.import")}
           </Button>
           <Dialog
             open={dialogOpen}
@@ -98,7 +91,7 @@ export default function Players() {
           >
             <DialogTrigger asChild>
               <Button>
-                <Plus className="h-4 w-4" /> Nova jogadora
+                <Plus className="h-4 w-4" /> {t("players.newPlayer")}
               </Button>
             </DialogTrigger>
             <PlayerDialog
@@ -131,7 +124,7 @@ export default function Players() {
               : "hover:bg-accent"
           }`}
         >
-          Todas
+          {t("players.filterAll")}
         </button>
         {POSITIONS.map((p) => (
           <button
@@ -143,7 +136,7 @@ export default function Players() {
                 : "hover:bg-accent"
             }`}
           >
-            {POSITION_LABEL[p]}
+            {t(`players.positions.${p}`)}
           </button>
         ))}
         <label className="ml-auto inline-flex items-center gap-2 text-muted-foreground cursor-pointer select-none">
@@ -153,7 +146,7 @@ export default function Players() {
             onChange={(e) => setShowInactive(e.target.checked)}
             className="h-4 w-4 rounded border-input"
           />
-          Mostrar inactivas
+          {t("players.showInactive")}
         </label>
       </div>
 
@@ -166,29 +159,26 @@ export default function Players() {
       ) : (playersQuery.data ?? []).length === 0 ? (
         <EmptyState
           icon={Users}
-          title="Constrói o teu plantel"
-          description="Adiciona as jogadoras uma a uma, ou importa um Excel/CSV com nome, número e posição."
+          title={t("players.empty.title")}
+          description={t("players.empty.description")}
           actions={
             <>
               <Button onClick={() => setDialogOpen(true)}>
-                <Plus className="h-4 w-4" /> Nova jogadora
+                <Plus className="h-4 w-4" /> {t("players.newPlayer")}
               </Button>
               <Button variant="outline" onClick={() => setImportOpen(true)}>
-                <Upload className="h-4 w-4" /> Importar
+                <Upload className="h-4 w-4" /> {t("players.import")}
               </Button>
             </>
           }
           footer={
-            <>
-              💡 O número de camisola é sugerido automaticamente para
-              evitares duplicados.
-            </>
+            <>💡 {t("players.empty.hint")}</>
           }
         />
       ) : filtered.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="p-8 text-center text-muted-foreground text-sm">
-            Nenhuma jogadora corresponde aos filtros actuais.{" "}
+            {t("players.noPlayersFilter")}{" "}
             <button
               onClick={() => {
                 setPositionFilter("all");
@@ -196,7 +186,7 @@ export default function Players() {
               }}
               className="text-primary hover:underline"
             >
-              Limpar filtros
+              {t("players.clearFilters")}
             </button>
           </CardContent>
         </Card>
@@ -226,7 +216,7 @@ export default function Players() {
                     </Link>
                     <div className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5">
                       <Badge variant="secondary">#{p.number}</Badge>
-                      <span>{POSITION_LABEL[p.position]}</span>
+                      <span>{t(`players.positions.${p.position}`)}</span>
                       {p.heightCm && <span>· {p.heightCm} cm</span>}
                     </div>
                   </div>
@@ -238,7 +228,7 @@ export default function Players() {
                         setEditing(p);
                         setDialogOpen(true);
                       }}
-                      aria-label="Editar"
+                      aria-label={t("common.edit")}
                     >
                       <UserCog className="h-4 w-4" />
                     </Button>
@@ -248,12 +238,12 @@ export default function Players() {
                       onClick={() => {
                         if (
                           confirm(
-                            `Remover ${p.firstName} ${p.lastName} do roster?`,
+                            t("players.deleteConfirm", { name: `${p.firstName} ${p.lastName}` }),
                           )
                         )
                           deleteMutation.mutate(p.id);
                       }}
-                      aria-label="Remover"
+                      aria-label={t("common.delete")}
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
@@ -285,6 +275,7 @@ function PlayerDialog({
   existingNumbers?: number[];
   onSaved: () => void;
 }) {
+  const { t } = useTranslation();
   const [firstName, setFirstName] = useState(editing?.firstName ?? "");
   const [lastName, setLastName] = useState(editing?.lastName ?? "");
   const [number, setNumber] = useState(
@@ -314,17 +305,17 @@ function PlayerDialog({
       return api.post<Player>("/api/players", body);
     },
     onSuccess: () => {
-      toast.success(editing ? "Jogadora actualizada" : "Jogadora criada");
+      toast.success(editing ? t("players.dialog.savedEdit") : t("players.dialog.savedNew"));
       onSaved();
     },
-    onError: (err: any) => toast.error(err.message ?? "Falha a gravar"),
+    onError: (err: any) => toast.error(err.message ?? t("players.dialog.saveError")),
   });
 
   return (
     <DialogContent>
       <DialogHeader>
         <DialogTitle>
-          {editing ? "Editar jogadora" : "Nova jogadora"}
+          {editing ? t("players.dialog.titleEdit") : t("players.dialog.titleNew")}
         </DialogTitle>
       </DialogHeader>
       <form
@@ -336,7 +327,7 @@ function PlayerDialog({
       >
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="firstName">Nome</Label>
+            <Label htmlFor="firstName">{t("players.dialog.firstName")}</Label>
             <Input
               id="firstName"
               value={firstName}
@@ -345,7 +336,7 @@ function PlayerDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="lastName">Apelido</Label>
+            <Label htmlFor="lastName">{t("players.dialog.lastName")}</Label>
             <Input
               id="lastName"
               value={lastName}
@@ -356,7 +347,7 @@ function PlayerDialog({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="number">Número</Label>
+            <Label htmlFor="number">{t("players.dialog.number")}</Label>
             <Input
               id="number"
               type="number"
@@ -368,7 +359,7 @@ function PlayerDialog({
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="position">Posição</Label>
+            <Label htmlFor="position">{t("players.dialog.position")}</Label>
             <Select
               id="position"
               value={position}
@@ -376,24 +367,14 @@ function PlayerDialog({
             >
               {POSITIONS.map((p) => (
                 <option key={p} value={p}>
-                  {p === "OH"
-                    ? "OH — Ponta"
-                    : p === "OPP"
-                      ? "OPP — Oposto"
-                      : p === "MB"
-                        ? "MB — Central"
-                        : p === "S"
-                          ? "S — Distribuidor"
-                          : p === "L"
-                            ? "L — Líbero"
-                            : "DS — Defensivo"}
+                  {t(`players.positionsFull.${p}`)}
                 </option>
               ))}
             </Select>
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="height">Altura (cm, opcional)</Label>
+          <Label htmlFor="height">{t("players.dialog.height")}</Label>
           <Input
             id="height"
             type="number"
@@ -412,11 +393,11 @@ function PlayerDialog({
             onChange={(e) => setActive(e.target.checked)}
             className="h-4 w-4 rounded border-input"
           />
-          Activa no roster
+          {t("players.dialog.active")}
         </label>
         <DialogFooter>
           <Button type="submit" disabled={saveMutation.isPending}>
-            {editing ? "Guardar" : "Criar"}
+            {editing ? t("players.dialog.save") : t("players.dialog.create")}
           </Button>
         </DialogFooter>
       </form>

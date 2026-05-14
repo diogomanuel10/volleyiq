@@ -6,6 +6,7 @@ import {
   RotateCw,
   Volleyball,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -16,12 +17,6 @@ import { cn } from "@/lib/utils";
 
 type Side = "home" | "away";
 
-/**
- * Score panel compacto: tudo numa linha. Mantém todas as acções (set ±,
- * ajustar score, rotação, marcar serviço) mas com altura ~50px em vez de
- * ~160px — liberta espaço acima do campo para o ActionBar/ResultBar ficar
- * sempre visível sem scroll.
- */
 export function ScorePanel({
   homeScore,
   awayScore,
@@ -45,6 +40,7 @@ export function ScorePanel({
   onPrevSet: () => void;
   onNextSet: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="rounded-xl border bg-card flex items-center gap-2 px-2 py-1.5">
       {/* Set navigator */}
@@ -54,19 +50,19 @@ export function ScorePanel({
           size="icon"
           className="h-7 w-7"
           onClick={onPrevSet}
-          aria-label="Set anterior"
+          aria-label={t("livescout.prevSet")}
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground tabular-nums px-1">
-          Set {setNumber}
+          {t("livescout.set", { number: setNumber })}
         </span>
         <Button
           variant="ghost"
           size="icon"
           className="h-7 w-7"
           onClick={onNextSet}
-          aria-label="Próximo set"
+          aria-label={t("livescout.nextSet")}
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
@@ -74,10 +70,10 @@ export function ScorePanel({
 
       <div className="h-6 w-px bg-border" aria-hidden />
 
-      {/* Score (centro, expande) */}
+      {/* Score (center, expands) */}
       <div className="flex-1 flex items-center justify-center gap-2 sm:gap-3">
         <ScoreBlock
-          label="Nós"
+          label={t("livescout.side.home")}
           score={homeScore}
           onInc={() => onAdjust("home", 1)}
           onDec={() => onAdjust("home", -1)}
@@ -89,7 +85,7 @@ export function ScorePanel({
           –
         </span>
         <ScoreBlock
-          label="Adv"
+          label={t("livescout.side.away")}
           score={awayScore}
           onInc={() => onAdjust("away", 1)}
           onDec={() => onAdjust("away", -1)}
@@ -101,17 +97,16 @@ export function ScorePanel({
 
       <div className="h-6 w-px bg-border" aria-hidden />
 
-      {/* Rotação */}
+      {/* Rotation */}
       <div className="flex items-center">
         <Tooltip>
           <TooltipTrigger asChild>
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground tabular-nums px-1 cursor-help">
-              Rot {rotation}
+              {t("livescout.rot")} {rotation}
             </span>
           </TooltipTrigger>
           <TooltipContent>
-            Posição do distribuidor: P{rotation}. Avança automaticamente em
-            side-out; podes forçar com a seta.
+            {t("livescout.rotationTooltip", { rotation })}
           </TooltipContent>
         </Tooltip>
         <Button
@@ -119,7 +114,7 @@ export function ScorePanel({
           size="icon"
           className="h-7 w-7"
           onClick={() => onRotate(1)}
-          aria-label="Próxima rotação"
+          aria-label={t("livescout.nextRotation")}
         >
           <RotateCw className="h-3.5 w-3.5" />
         </Button>
@@ -145,6 +140,7 @@ function ScoreBlock({
   onClickServe: () => void;
   tone: "home" | "away";
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex items-center gap-1">
       <span
@@ -160,7 +156,7 @@ function ScoreBlock({
           <button
             type="button"
             onClick={onClickServe}
-            aria-label={serving ? "A servir" : "Marcar como serviço"}
+            aria-label={serving ? t("livescout.serving") : t("livescout.markAsServing")}
             className={cn(
               "h-4 w-4 rounded-full flex items-center justify-center transition-colors shrink-0",
               serving
@@ -172,7 +168,7 @@ function ScoreBlock({
           </button>
         </TooltipTrigger>
         <TooltipContent>
-          {serving ? "A servir actualmente" : "Corrigir quem está a servir"}
+          {serving ? t("livescout.currentlyServing") : t("livescout.correctServing")}
         </TooltipContent>
       </Tooltip>
       <Button
@@ -180,7 +176,7 @@ function ScoreBlock({
         size="icon"
         className="h-6 w-6"
         onClick={onDec}
-        aria-label={`${label} menos um`}
+        aria-label={`${label} -1`}
       >
         <Minus className="h-3 w-3" />
       </Button>
@@ -192,7 +188,7 @@ function ScoreBlock({
         size="icon"
         className="h-6 w-6"
         onClick={onInc}
-        aria-label={`${label} mais um`}
+        aria-label={`${label} +1`}
       >
         <Plus className="h-3 w-3" />
       </Button>

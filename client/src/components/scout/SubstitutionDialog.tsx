@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,9 +22,7 @@ interface Props {
   setNumber: number;
   homeScore: number;
   awayScore: number;
-  /** Quem está em campo agora — só estes podem sair. */
   onCourt: Player[];
-  /** Quem está no banco — só estes podem entrar. */
   bench: Player[];
   onCreated: (sub: Substitution) => void;
 }
@@ -39,6 +38,7 @@ export function SubstitutionDialog({
   bench,
   onCreated,
 }: Props) {
+  const { t } = useTranslation();
   const [outId, setOutId] = useState<string>("");
   const [inId, setInId] = useState<string>("");
 
@@ -52,14 +52,14 @@ export function SubstitutionDialog({
         playerOutId: outId,
       }),
     onSuccess: (sub) => {
-      toast.success("Substituição registada");
+      toast.success(t("livescout.substitutionRegistered"));
       onCreated(sub);
       setOutId("");
       setInId("");
       onOpenChange(false);
     },
     onError: (err) =>
-      toast.error("Falha", {
+      toast.error(t("common.error"), {
         description: err instanceof Error ? err.message : String(err),
       }),
   });
@@ -77,20 +77,20 @@ export function SubstitutionDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Substituição — Set {setNumber}</DialogTitle>
+          <DialogTitle>{t("livescout.substitutionTitle", { set: setNumber })}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3">
           <div className="space-y-1">
             <Label htmlFor="sub-out" className="text-xs">
-              Sai
+              {t("livescout.substitutionOut")}
             </Label>
             <Select
               id="sub-out"
               value={outId}
               onChange={(e) => setOutId(e.target.value)}
             >
-              <option value="">— escolher —</option>
+              <option value="">— {t("livescout.choose")} —</option>
               {onCourt.map((p) => (
                 <option key={p.id} value={p.id}>
                   #{p.number} {p.firstName} {p.lastName} · {p.position}
@@ -101,14 +101,14 @@ export function SubstitutionDialog({
 
           <div className="space-y-1">
             <Label htmlFor="sub-in" className="text-xs">
-              Entra
+              {t("livescout.substitutionIn")}
             </Label>
             <Select
               id="sub-in"
               value={inId}
               onChange={(e) => setInId(e.target.value)}
             >
-              <option value="">— escolher —</option>
+              <option value="">— {t("livescout.choose")} —</option>
               {bench.map((p) => (
                 <option key={p.id} value={p.id}>
                   #{p.number} {p.firstName} {p.lastName} · {p.position}
@@ -118,9 +118,7 @@ export function SubstitutionDialog({
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Resultado actual: {homeScore} — {awayScore}. A substituição
-            fica timestampada com o resultado para análises por momento do
-            set.
+            {t("livescout.substitutionScore", { home: homeScore, away: awayScore })}
           </p>
         </div>
 
@@ -131,14 +129,14 @@ export function SubstitutionDialog({
             onClick={() => onOpenChange(false)}
             disabled={create.isPending}
           >
-            Cancelar
+            {t("common.cancel")}
           </Button>
           <Button
             type="button"
             onClick={() => create.mutate()}
             disabled={!inId || !outId || create.isPending}
           >
-            {create.isPending ? "A registar…" : "Confirmar substituição"}
+            {create.isPending ? t("common.saving") : t("livescout.confirmSubstitution")}
           </Button>
         </DialogFooter>
       </DialogContent>

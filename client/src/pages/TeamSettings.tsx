@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { Copy, RefreshCw, Users, Check } from "lucide-react";
 import { api } from "@/lib/api";
 import { useTeam } from "@/hooks/useTeam";
@@ -15,15 +16,9 @@ interface Membership {
   role: "owner" | "coach" | "analyst" | "viewer";
 }
 
-const ROLE_LABEL: Record<Membership["role"], string> = {
-  owner: "Dono",
-  coach: "Treinador",
-  analyst: "Analista",
-  viewer: "Observador",
-};
-
 export default function TeamSettings() {
   const { team } = useTeam();
+  const { t } = useTranslation();
 
   if (!team) return null;
 
@@ -31,10 +26,10 @@ export default function TeamSettings() {
     <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-6">
       <header>
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-          Definições da equipa
+          {t("teamSettings.title")}
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          {team.name} · {team.club}
+          {t("teamSettings.subtitle", { name: team.name, club: team.club })}
         </p>
       </header>
 
@@ -45,6 +40,7 @@ export default function TeamSettings() {
 }
 
 function InviteCodeCard({ team }: { team: Team }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [copied, setCopied] = useState(false);
 
@@ -54,14 +50,14 @@ function InviteCodeCard({ team }: { team: Team }) {
     mutationFn: () =>
       api.post<{ inviteCode: string }>(`/api/teams/${team.id}/regenerate-invite`, {}),
     onSuccess: () => {
-      toast.success("Código regenerado.");
+      toast.success(t("teamSettings.inviteCode.regenerated"));
       qc.invalidateQueries({ queryKey: ["teams"] });
     },
     onError: (err: any) => {
       if (err?.message?.includes("owner_only")) {
-        toast.error("Só o dono da equipa pode regenerar o código.");
+        toast.error(t("teamSettings.inviteCode.ownerOnly"));
       } else {
-        toast.error("Não foi possível regenerar o código.");
+        toast.error(t("teamSettings.inviteCode.regenerateError"));
       }
     },
   });
@@ -77,10 +73,9 @@ function InviteCodeCard({ team }: { team: Team }) {
   return (
     <section className="rounded-xl border bg-card p-5 space-y-4">
       <div>
-        <h2 className="font-semibold">Código de convite</h2>
+        <h2 className="font-semibold">{t("teamSettings.inviteCode.title")}</h2>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Partilha este código com o teu assistente. Ele introduz-o em{" "}
-          <strong>Juntar equipa</strong> para ter acesso imediato.
+          {t("teamSettings.inviteCode.description")}
         </p>
       </div>
 
@@ -93,7 +88,7 @@ function InviteCodeCard({ team }: { team: Team }) {
             variant="outline"
             size="icon"
             onClick={copyCode}
-            title="Copiar código"
+            title={t("teamSettings.inviteCode.copyCode")}
           >
             {copied ? (
               <Check className="h-4 w-4 text-emerald-600" />
@@ -105,11 +100,11 @@ function InviteCodeCard({ team }: { team: Team }) {
             variant="outline"
             size="icon"
             onClick={() => {
-              if (confirm("Regenerar código? O código anterior deixa de funcionar."))
+              if (confirm(t("teamSettings.inviteCode.regenerateConfirm")))
                 regenMutation.mutate();
             }}
             disabled={regenMutation.isPending}
-            title="Regenerar código"
+            title={t("teamSettings.inviteCode.regenerateCode")}
           >
             <RefreshCw
               className={`h-4 w-4 ${regenMutation.isPending ? "animate-spin" : ""}`}
@@ -119,7 +114,7 @@ function InviteCodeCard({ team }: { team: Team }) {
       ) : (
         <div className="flex items-center gap-3">
           <p className="text-sm text-muted-foreground flex-1">
-            Esta equipa ainda não tem código de convite.
+            {t("teamSettings.inviteCode.noCode")}
           </p>
           <Button
             variant="outline"
@@ -127,7 +122,7 @@ function InviteCodeCard({ team }: { team: Team }) {
             disabled={regenMutation.isPending}
           >
             <RefreshCw className="h-4 w-4 mr-1.5" />
-            Gerar código
+            {t("teamSettings.inviteCode.generateCode")}
           </Button>
         </div>
       )}
@@ -136,6 +131,7 @@ function InviteCodeCard({ team }: { team: Team }) {
 }
 
 function MembersCard({ teamId }: { teamId: string }) {
+  const { t } = useTranslation();
   const membersQuery = useQuery<Membership[]>({
     queryKey: ["teamMembers", teamId],
     queryFn: () => api.get(`/api/teams/${teamId}/members`),
@@ -147,10 +143,10 @@ function MembersCard({ teamId }: { teamId: string }) {
     <section className="rounded-xl border bg-card p-5 space-y-4">
       <div className="flex items-center gap-2">
         <Users className="h-4 w-4 text-muted-foreground" />
-        <h2 className="font-semibold">Membros</h2>
+        <h2 className="font-semibold">{t("teamSettings.members.title")}</h2>
         {members.length > 0 && (
           <span className="text-xs text-muted-foreground ml-auto">
-            {members.length} {members.length === 1 ? "membro" : "membros"}
+            {t("teamSettings.members.count", { count: members.length })}
           </span>
         )}
       </div>
@@ -163,7 +159,7 @@ function MembersCard({ teamId }: { teamId: string }) {
         </div>
       ) : members.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Sem membros registados.
+          {t("teamSettings.members.empty")}
         </p>
       ) : (
         <ul className="space-y-2">
@@ -176,7 +172,7 @@ function MembersCard({ teamId }: { teamId: string }) {
                 {m.uid}
               </span>
               <Badge variant={m.role === "owner" ? "default" : "secondary"}>
-                {ROLE_LABEL[m.role]}
+                {t(`teamSettings.members.roles.${m.role}`)}
               </Badge>
             </li>
           ))}
@@ -184,8 +180,7 @@ function MembersCard({ teamId }: { teamId: string }) {
       )}
 
       <p className="text-xs text-muted-foreground">
-        Os membros entram como <strong>Treinador</strong> por omissão. Em breve
-        será possível alterar os roles aqui.
+        {t("teamSettings.members.rolesNote")}
       </p>
     </section>
   );

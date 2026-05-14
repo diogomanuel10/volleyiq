@@ -1,6 +1,7 @@
 import { Check, Loader2, Sparkles } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,76 +12,67 @@ import type { Team } from "@shared/schema";
 
 type PlanId = "basic" | "pro" | "club";
 
-interface Plan {
-  id: PlanId;
-  name: string;
-  price: string;
-  period?: string;
-  blurb: string;
-  featured?: boolean;
-  features: string[];
-}
-
-const plans: Plan[] = [
-  {
-    id: "basic",
-    name: "Basic",
-    price: "Grátis",
-    blurb: "Para experimentar o produto",
-    features: [
-      "1 equipa",
-      "Live scouting",
-      "Métricas básicas",
-      "Limite de 10 jogos",
-    ],
-  },
-  {
-    id: "pro",
-    name: "Pro",
-    price: "€29",
-    period: "/mês",
-    blurb: "Para treinadores e clubes pequenos",
-    featured: true,
-    features: [
-      "5 equipas",
-      "Analytics completo",
-      "AI pattern detection",
-      "AI training plans",
-      "Relatórios PDF",
-      "Scenario modeling",
-      "Tagging de vídeo",
-    ],
-  },
-  {
-    id: "club",
-    name: "Club",
-    price: "€79",
-    period: "/mês",
-    blurb: "Para clubes com múltiplas equipas",
-    features: [
-      "Equipas ilimitadas",
-      "Tudo do Pro",
-      "Gestão de quotas e presenças",
-      "Acesso API",
-      "Suporte prioritário",
-    ],
-  },
-];
-
 export default function Pricing() {
   const { team } = useTeam();
+  const { t } = useTranslation();
   const qc = useQueryClient();
+
+  const plans = [
+    {
+      id: "basic" as PlanId,
+      name: t("pricing.plans.basic.name"),
+      price: t("pricing.plans.basic.price"),
+      blurb: t("pricing.plans.basic.blurb"),
+      features: [
+        t("pricing.features.basic.teams"),
+        t("pricing.features.basic.liveScouting"),
+        t("pricing.features.basic.basicMetrics"),
+        t("pricing.features.basic.matchLimit"),
+      ],
+    },
+    {
+      id: "pro" as PlanId,
+      name: t("pricing.plans.pro.name"),
+      price: t("pricing.plans.pro.price"),
+      period: t("pricing.plans.pro.period"),
+      blurb: t("pricing.plans.pro.blurb"),
+      featured: true,
+      features: [
+        t("pricing.features.pro.teams"),
+        t("pricing.features.pro.analytics"),
+        t("pricing.features.pro.aiPatterns"),
+        t("pricing.features.pro.aiTraining"),
+        t("pricing.features.pro.pdfReports"),
+        t("pricing.features.pro.scenario"),
+        t("pricing.features.pro.videoTagging"),
+      ],
+    },
+    {
+      id: "club" as PlanId,
+      name: t("pricing.plans.club.name"),
+      price: t("pricing.plans.club.price"),
+      period: t("pricing.plans.club.period"),
+      blurb: t("pricing.plans.club.blurb"),
+      features: [
+        t("pricing.features.club.teams"),
+        t("pricing.features.club.allPro"),
+        t("pricing.features.club.payments"),
+        t("pricing.features.club.api"),
+        t("pricing.features.club.support"),
+      ],
+    },
+  ];
 
   const changePlan = useMutation({
     mutationFn: (plan: PlanId) =>
       api.patch<Team>(`/api/teams/${team!.id}/plan`, { plan }),
-    onSuccess: (t) => {
+    onSuccess: (updated) => {
       qc.setQueryData<Team[]>(["teams"], (prev) =>
-        prev?.map((x) => (x.id === t.id ? t : x)) ?? prev,
+        prev?.map((x) => (x.id === updated.id ? updated : x)) ?? prev,
       );
-      toast.success(`Plano alterado para ${t.plan.toUpperCase()}`);
+      toast.success(t("pricing.planChanged", { plan: updated.plan.toUpperCase() }));
     },
-    onError: () => toast.error("Falha ao alterar plano"),
+    onError: () => toast.error(t("pricing.planChangeError")),
   });
 
   const current = team?.plan as PlanId | undefined;
@@ -89,18 +81,17 @@ export default function Pricing() {
     <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-8">
       <header className="text-center space-y-2">
         <Badge variant="outline" className="gap-1 mx-auto">
-          <Sparkles className="h-3 w-3" /> Preços simples
+          <Sparkles className="h-3 w-3" /> {t("pricing.simplePricing")}
         </Badge>
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-          Escolhe o plano certo para a tua equipa
+          {t("pricing.title")}
         </h1>
         <p className="text-muted-foreground max-w-2xl mx-auto">
-          Começa grátis. Actualiza quando precisares de analytics avançado, IA ou
-          gestão de clube.
+          {t("pricing.subtitle")}
         </p>
         {team && (
           <p className="text-xs text-muted-foreground">
-            Equipa actual: <b>{team.name}</b> — plano{" "}
+            {t("pricing.currentTeam")} <b>{team.name}</b> —{" "}
             <Badge variant="secondary" className="uppercase ml-1">
               {team.plan}
             </Badge>
@@ -124,12 +115,12 @@ export default function Pricing() {
             >
               {p.featured && !isCurrent && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <Badge>Mais popular</Badge>
+                  <Badge>{t("pricing.mostPopular")}</Badge>
                 </div>
               )}
               {isCurrent && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <Badge variant="secondary">Plano actual</Badge>
+                  <Badge variant="secondary">{t("pricing.currentPlan")}</Badge>
                 </div>
               )}
               <CardHeader>
@@ -161,14 +152,14 @@ export default function Pricing() {
                 >
                   {isPending ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" /> A mudar…
+                      <Loader2 className="h-4 w-4 animate-spin" /> {t("pricing.changing")}
                     </>
                   ) : isCurrent ? (
-                    "Plano actual"
+                    t("pricing.currentPlan")
                   ) : current === "basic" ? (
-                    `Fazer upgrade para ${p.name}`
+                    t("pricing.upgradeTo", { plan: p.name })
                   ) : (
-                    `Mudar para ${p.name}`
+                    t("pricing.switchTo", { plan: p.name })
                   )}
                 </Button>
               </CardContent>
@@ -178,9 +169,7 @@ export default function Pricing() {
       </section>
 
       <p className="text-center text-xs text-muted-foreground">
-        Billing mockado: mudar de plano altera o registo da equipa em SQLite e
-        desbloqueia features no cliente. Integração Stripe/Mollie fica para uma
-        fase seguinte.
+        {t("pricing.billingNote")}
       </p>
     </div>
   );

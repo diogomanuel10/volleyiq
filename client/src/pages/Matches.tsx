@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -40,13 +41,6 @@ import { MatchImportDialog } from "@/components/MatchImportDialog";
 import { DvwImportDialog } from "@/components/DvwImportDialog";
 
 type Status = Match["status"];
-
-const STATUS_LABEL: Record<Status, string> = {
-  scheduled: "Agendado",
-  live: "Live",
-  finished: "Terminado",
-  cancelled: "Cancelado",
-};
 const STATUS_VARIANT: Record<Status, "secondary" | "success" | "warning"> = {
   scheduled: "secondary",
   live: "warning",
@@ -56,6 +50,7 @@ const STATUS_VARIANT: Record<Status, "secondary" | "success" | "warning"> = {
 
 export default function Matches() {
   const { team } = useTeam();
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<"all" | Status>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -79,10 +74,10 @@ export default function Matches() {
     mutationFn: (id: string) =>
       api.delete(`/api/matches/${id}?teamId=${team!.id}`),
     onSuccess: () => {
-      toast.success("Jogo removido");
+      toast.success(t("matches.deleted"));
       qc.invalidateQueries({ queryKey: ["matches", team?.id] });
     },
-    onError: (err: any) => toast.error(err.message ?? "Falha a remover"),
+    onError: (err: any) => toast.error(err.message ?? t("matches.deleteError")),
   });
 
   if (!team) return null;
@@ -91,9 +86,9 @@ export default function Matches() {
     <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Jogos</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{t("matches.title")}</h1>
           <p className="text-muted-foreground text-sm">
-            Calendário e histórico de {team.name}.
+            {t("matches.subtitle", { team: team.name })}
           </p>
         </div>
         <div className="flex gap-2">
@@ -101,12 +96,12 @@ export default function Matches() {
             <Upload className="h-4 w-4" /> DataVolley
           </Button>
           <Button variant="outline" onClick={() => setImportOpen(true)}>
-            <Upload className="h-4 w-4" /> Importar
+            <Upload className="h-4 w-4" /> {t("matches.import")}
           </Button>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button>
-                <Plus className="h-4 w-4" /> Novo jogo
+                <Plus className="h-4 w-4" /> {t("matches.newMatch")}
               </Button>
             </DialogTrigger>
             <NewMatchDialog
@@ -145,7 +140,7 @@ export default function Matches() {
                   : "hover:bg-accent"
               }`}
             >
-              {s === "all" ? "Todos" : STATUS_LABEL[s]}
+              {s === "all" ? t("matches.status.all") : t(`matches.status.${s}`)}
             </button>
           ),
         )}
@@ -160,38 +155,36 @@ export default function Matches() {
       ) : (matchesQuery.data ?? []).length === 0 ? (
         <EmptyState
           icon={CalendarPlus}
-          title="Marca o teu primeiro jogo"
-          description="Adiciona um jogo agendado para abrires o Live Scout no dia. Depois é só fluir: registar acções, ver estatísticas, gerar relatórios."
+          title={t("matches.empty.title")}
+          description={t("matches.empty.description")}
           actions={
             <>
               <Button onClick={() => setDialogOpen(true)}>
-                <Plus className="h-4 w-4" /> Novo jogo
+                <Plus className="h-4 w-4" /> {t("matches.newMatch")}
               </Button>
               <Button variant="outline" onClick={() => setImportOpen(true)}>
-                <Upload className="h-4 w-4" /> Importar calendário
+                <Upload className="h-4 w-4" /> {t("matches.importCalendar")}
               </Button>
               <Button variant="ghost" onClick={() => setDvwOpen(true)}>
-                <Upload className="h-4 w-4" /> Importar .dvw
+                <Upload className="h-4 w-4" /> {t("matches.importDvw")}
               </Button>
             </>
           }
           footer={
             <>
-              💡 Tens histórico em DataVolley? Cada <code>.dvw</code> importa
-              jogo, plantel adversário e todas as acções.
+              💡 {t("matches.empty.dvwHint")}
             </>
           }
         />
       ) : filtered.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="p-8 text-center text-muted-foreground text-sm">
-            Nenhum jogo no estado{" "}
-            <strong>{STATUS_LABEL[statusFilter as Status].toLowerCase()}</strong>.{" "}
+            <span dangerouslySetInnerHTML={{ __html: t("matches.noMatchesFilter", { status: t(`matches.status.${statusFilter}`).toLowerCase() }) }} />{" "}
             <button
               onClick={() => setStatusFilter("all")}
               className="text-primary hover:underline"
             >
-              Ver todos
+              {t("matches.showAll")}
             </button>
           </CardContent>
         </Card>
@@ -225,18 +218,14 @@ export default function Matches() {
                         {STATUS_LABEL[m.status]}
                       </Badge>
                       {m.matchType === "observation" && (
-                        <Badge variant="secondary">Observação</Badge>
+                        <Badge variant="secondary">{t("matches.observation")}</Badge>
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 mt-0.5">
                       <span>{formatDate(m.date)}</span>
                       <span className="inline-flex items-center gap-1">
                         <MapPin className="h-3 w-3" />
-                        {m.venue === "home"
-                          ? "Casa"
-                          : m.venue === "away"
-                            ? "Fora"
-                            : "Neutro"}
+                        {t(`matches.venue.${m.venue}`)}
                       </span>
                       {m.competition && <span>{m.competition}</span>}
                     </div>
@@ -245,7 +234,7 @@ export default function Matches() {
                     <div className="text-2xl font-bold tabular-nums">
                       {m.setsWon}–{m.setsLost}
                     </div>
-                    <div className="text-[11px] text-muted-foreground">sets</div>
+                    <div className="text-[11px] text-muted-foreground">{t("matches.sets")}</div>
                   </div>
                   <div className="flex gap-1 shrink-0">
                     <Button asChild variant="ghost" size="sm">
@@ -262,7 +251,7 @@ export default function Matches() {
                       variant="ghost"
                       size="icon"
                       onClick={() => {
-                        if (confirm(`Remover jogo vs. ${m.opponent}?`))
+                        if (confirm(t("matches.deleteConfirm", { opponent: m.opponent })))
                           deleteMutation.mutate(m.id);
                       }}
                     >
@@ -286,6 +275,7 @@ function NewMatchDialog({
   teamId: string;
   onCreated: () => void;
 }) {
+  const { t } = useTranslation();
   const [matchType, setMatchType] = useState<"regular" | "observation">("regular");
   const [opponentTeamId, setOpponentTeamId] = useState<string>("");
   const [opponentTeamBId, setOpponentTeamBId] = useState<string>("");
@@ -355,20 +345,20 @@ function NewMatchDialog({
         status: "scheduled",
       }),
     onSuccess: () => {
-      toast.success("Jogo criado");
+      toast.success(t("matches.newMatchDialog.created"));
       onCreated();
     },
-    onError: (err: any) => toast.error(err.message ?? "Falha a criar"),
+    onError: (err: any) => toast.error(err.message ?? t("matches.newMatchDialog.createError")),
   });
 
   return (
     <DialogContent>
       <DialogHeader>
-        <DialogTitle>Novo jogo</DialogTitle>
+        <DialogTitle>{t("matches.newMatchDialog.title")}</DialogTitle>
         <DialogDescription>
           {isObservation
-            ? "Regista um jogo de observação entre dois adversários."
-            : "Agenda um jogo. Podes entrar no Live Scout depois."}
+            ? t("matches.newMatchDialog.descriptionObservation")
+            : t("matches.newMatchDialog.descriptionRegular")}
         </DialogDescription>
       </DialogHeader>
       <form
@@ -380,18 +370,18 @@ function NewMatchDialog({
       >
         {/* Match type toggle */}
         <div className="inline-flex rounded-lg border overflow-hidden w-full">
-          {(["regular", "observation"] as const).map((t) => (
+          {(["regular", "observation"] as const).map((mt) => (
             <button
-              key={t}
+              key={mt}
               type="button"
-              onClick={() => switchType(t)}
+              onClick={() => switchType(mt)}
               className={`flex-1 py-1.5 text-sm font-medium transition-colors ${
-                matchType === t
+                matchType === mt
                   ? "bg-primary text-primary-foreground"
                   : "hover:bg-accent"
               }`}
             >
-              {t === "regular" ? "Jogo nosso" : "Observação"}
+              {mt === "regular" ? t("matches.newMatchDialog.regular") : t("matches.newMatchDialog.observation")}
             </button>
           ))}
         </div>
@@ -400,18 +390,17 @@ function NewMatchDialog({
           /* Observation: pick two opponent teams from catalog */
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">
-              Selecciona os dois adversários que vais observar. O scout ficará
-              associado a ambas as equipas.
+              {t("matches.newMatchDialog.observationHint")}
             </p>
             <div className="space-y-1.5">
-              <Label htmlFor="opp-team-a">Equipa A</Label>
+              <Label htmlFor="opp-team-a">{t("matches.newMatchDialog.teamA")}</Label>
               <Select
                 id="opp-team-a"
                 value={opponentTeamId}
                 onChange={(e) => pickOpponentTeamA(e.target.value)}
                 required
               >
-                <option value="">— escolher —</option>
+                <option value="">{t("matches.newMatchDialog.chooseOpponent")}</option>
                 {opponentOptions
                   .filter((o) => o.id !== opponentTeamBId)
                   .map((o) => (
@@ -423,14 +412,14 @@ function NewMatchDialog({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="opp-team-b">Equipa B</Label>
+              <Label htmlFor="opp-team-b">{t("matches.newMatchDialog.teamB")}</Label>
               <Select
                 id="opp-team-b"
                 value={opponentTeamBId}
                 onChange={(e) => pickOpponentTeamB(e.target.value)}
                 required
               >
-                <option value="">— escolher —</option>
+                <option value="">{t("matches.newMatchDialog.chooseOpponent")}</option>
                 {opponentOptions
                   .filter((o) => o.id !== opponentTeamId)
                   .map((o) => (
@@ -443,8 +432,7 @@ function NewMatchDialog({
             </div>
             {opponentOptions.length < 2 && (
               <p className="text-xs text-amber-600">
-                Precisas de pelo menos 2 adversários no catálogo. Vai a{" "}
-                <strong>Adversários</strong> e adiciona-os primeiro.
+                {t("matches.newMatchDialog.needTwoOpponents")}
               </p>
             )}
           </div>
@@ -453,13 +441,13 @@ function NewMatchDialog({
           <>
             {opponentOptions.length > 0 && (
               <div className="space-y-1.5">
-                <Label htmlFor="opp-team">Equipa adversária (catálogo)</Label>
+                <Label htmlFor="opp-team">{t("matches.newMatchDialog.catalogSelect")}</Label>
                 <Select
                   id="opp-team"
                   value={opponentTeamId}
                   onChange={(e) => pickOpponentTeamA(e.target.value)}
                 >
-                  <option value="">— usar texto livre abaixo —</option>
+                  <option value="">{t("matches.newMatchDialog.useFreeText")}</option>
                   {opponentOptions.map((o) => (
                     <option key={o.id} value={o.id}>
                       {o.name}
@@ -468,13 +456,12 @@ function NewMatchDialog({
                   ))}
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  Escolher daqui associa o jogo à ficha do adversário (plantel,
-                  equipa técnica, histórico).
+                  {t("matches.newMatchDialog.catalogHint")}
                 </p>
               </div>
             )}
             <div className="space-y-1.5">
-              <Label htmlFor="opponent">Adversário</Label>
+              <Label htmlFor="opponent">{t("matches.newMatchDialog.opponent")}</Label>
               <Input
                 id="opponent"
                 value={opponent}
@@ -491,7 +478,7 @@ function NewMatchDialog({
 
         <div className={`grid gap-3 ${isObservation ? "grid-cols-1" : "grid-cols-2"}`}>
           <div className="space-y-1.5">
-            <Label htmlFor="date">Data</Label>
+            <Label htmlFor="date">{t("matches.newMatchDialog.date")}</Label>
             <Input
               id="date"
               type="date"
@@ -502,50 +489,50 @@ function NewMatchDialog({
           </div>
           {!isObservation && (
             <div className="space-y-1.5">
-              <Label htmlFor="venue">Local</Label>
+              <Label htmlFor="venue">{t("matches.newMatchDialog.venue")}</Label>
               <Select
                 id="venue"
                 value={venue}
                 onChange={(e) => setVenue(e.target.value as Match["venue"])}
               >
-                <option value="home">Casa</option>
-                <option value="away">Fora</option>
-                <option value="neutral">Neutro</option>
+                <option value="home">{t("matches.venue.home")}</option>
+                <option value="away">{t("matches.venue.away")}</option>
+                <option value="neutral">{t("matches.venue.neutral")}</option>
               </Select>
             </div>
           )}
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="competition">Competição (opcional)</Label>
+          <Label htmlFor="competition">{t("matches.newMatchDialog.competition")}</Label>
           <Input
             id="competition"
             value={competition}
             onChange={(e) => setCompetition(e.target.value)}
-            placeholder="Liga, Taça, Amigável…"
+            placeholder={t("matches.newMatchDialog.competitionPlaceholder")}
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="videoUrl">Vídeo (YouTube, opcional)</Label>
+          <Label htmlFor="videoUrl">{t("matches.newMatchDialog.videoUrl")}</Label>
           <Input
             id="videoUrl"
             value={videoUrl}
             onChange={(e) => setVideoUrl(e.target.value)}
-            placeholder="https://www.youtube.com/watch?v=…"
+            placeholder={t("matches.newMatchDialog.videoUrlPlaceholder")}
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="notes">Notas (opcional)</Label>
+          <Label htmlFor="notes">{t("matches.newMatchDialog.notes")}</Label>
           <Textarea
             id="notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Observações tácticas, lesões, etc."
+            placeholder={t("matches.newMatchDialog.notesPlaceholder")}
           />
         </div>
         <DialogFooter>
           <Button type="submit" disabled={createMutation.isPending || !canSubmit}>
-            {isObservation ? "Criar jogo de observação" : "Criar jogo"}
+            {isObservation ? t("matches.newMatchDialog.createObservationButton") : t("matches.newMatchDialog.createButton")}
           </Button>
         </DialogFooter>
       </form>

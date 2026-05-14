@@ -412,3 +412,13 @@ export const insertOpponentCoachSchema = createInsertSchema(
 ).omit({ id: true, createdAt: true });
 export type OpponentCoach = InferSelectModel<typeof opponentCoaches>;
 export type InsertOpponentCoach = z.infer<typeof insertOpponentCoachSchema>;
+
+// ── User preferences (language, etc.) ────────────────────────────────────
+export const userPreferences = pgTable("user_preferences", {
+  uid: text("uid").primaryKey(),
+  language: text("language").default("pt-PT").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertUserPreferencesSchema = createInsertSchema(userPreferences);
+export type UserPreferences = InferSelectModel<typeof userPreferences>;

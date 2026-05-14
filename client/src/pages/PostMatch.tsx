@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
   Award,
@@ -111,11 +112,11 @@ const RESULT_SHORT: Record<string, string> = {
   tooled: "Tooled",
   in_play: "In",
   perfect: "Perf",
-  good: "Bom",
-  poor: "Fraco",
+  good: "Good",
+  poor: "Poor",
   blocked: "Blk",
   stuff: "Stuff",
-  touch: "Tq",
+  touch: "Tch",
 };
 
 function fmtTime(sec: number) {
@@ -143,6 +144,7 @@ export default function PostMatch() {
 }
 
 function MatchPicker({ teamId }: { teamId: string }) {
+  const { t } = useTranslation();
   const matchesQuery = useQuery({
     queryKey: ["matches", teamId],
     queryFn: () => api.get<Match[]>(`/api/matches?teamId=${teamId}`),
@@ -155,10 +157,10 @@ function MatchPicker({ teamId }: { teamId: string }) {
     <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-4">
       <header>
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-          Post-Match
+          {t("postMatch.title")}
         </h1>
         <p className="text-muted-foreground text-sm">
-          Resumos detalhados dos jogos com foco no atleta.
+          {t("postMatch.subtitle")}
         </p>
       </header>
 
@@ -167,18 +169,18 @@ function MatchPicker({ teamId }: { teamId: string }) {
       ) : list.length === 0 ? (
         <EmptyState
           icon={ClipboardList}
-          title="Sem jogos terminados ainda"
-          description="Os resumos pós-jogo aparecem aqui assim que um jogo passa a estado 'terminado'. Entretanto, faz scouting do próximo."
+          title={t("postMatch.empty.title")}
+          description={t("postMatch.empty.description")}
           actions={
             <>
               <Button asChild>
                 <Link href="/scout">
-                  <Radio className="h-4 w-4" /> Iniciar Live Scout
+                  <Radio className="h-4 w-4" /> {t("livescout.noMatch")}
                 </Link>
               </Button>
               <Button asChild variant="outline">
                 <Link href="/matches">
-                  <CalendarPlus className="h-4 w-4" /> Ir para Jogos
+                  <CalendarPlus className="h-4 w-4" /> {t("nav.matches")}
                 </Link>
               </Button>
             </>
@@ -224,6 +226,7 @@ function Summary({
   teamId: string;
   onBack: () => void;
 }) {
+  const { t } = useTranslation();
   const videoRef = useRef<VideoPanelHandle>(null);
   const summaryQuery = useQuery({
     queryKey: ["summary", matchId],
@@ -248,18 +251,18 @@ function Summary({
       <div className="p-4 md:p-8 max-w-screen-2xl mx-auto">
         <EmptyState
           icon={ClipboardList}
-          title="Este jogo ainda não foi scoutado"
-          description="O resumo pós-jogo precisa de pelo menos algumas acções registadas. Abre o Live Scout e regista o jogo (mesmo que seja em diferido a partir de vídeo)."
+          title={t("postMatch.empty.title")}
+          description={t("postMatch.empty.description")}
           actions={
             <>
               <Button asChild>
                 <Link href={`/scout/${matchId}`}>
-                  <Radio className="h-4 w-4" /> Abrir no Live Scout
+                  <Radio className="h-4 w-4" /> {t("nav.livescout")}
                 </Link>
               </Button>
               <Button asChild variant="outline">
                 <Link href="/matches">
-                  <ArrowLeft className="h-4 w-4" /> Voltar aos jogos
+                  <ArrowLeft className="h-4 w-4" /> {t("nav.matches")}
                 </Link>
               </Button>
             </>
@@ -282,7 +285,7 @@ function Summary({
   return (
     <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-5">
       <Button variant="ghost" size="sm" onClick={onBack} className="print-hide">
-        <ArrowLeft className="h-4 w-4" /> Voltar
+        <ArrowLeft className="h-4 w-4" /> {t("common.back")}
       </Button>
 
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -292,13 +295,12 @@ function Summary({
             vs. {s.opponent}
           </h1>
           <p className="text-muted-foreground text-sm">
-            {s.totalActions} acções registadas · {s.players.length} jogadora(s)
-            com acções.
+            {s.totalActions} {t("common.actions")} · {s.players.length} {t("common.players")}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant={win ? "success" : "secondary"} className="text-base">
-            {s.setsWon}–{s.setsLost} {win ? "Vitória" : "Derrota"}
+            {s.setsWon}–{s.setsLost} {win ? t("matches.statusLabel.won") : t("matches.statusLabel.lost")}
           </Badge>
           <Button
             size="sm"
@@ -306,12 +308,12 @@ function Summary({
             onClick={() => window.print()}
             className="print-hide"
           >
-            <Printer className="h-4 w-4" /> Exportar PDF
+            <Printer className="h-4 w-4" /> {t("postMatch.print")}
           </Button>
         </div>
       </header>
 
-      {/* KPIs da equipa */}
+      {/* Team KPIs */}
       <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {kpis.map((k, idx) => (
           <motion.div
@@ -389,11 +391,10 @@ function Summary({
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <Shield className="h-4 w-4 text-primary" /> Rotações
+            <Shield className="h-4 w-4 text-primary" /> {t("postMatch.rotationStats")}
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Sideout (recepção) e Break-point (serviço) por rotação. Verde
-            indica rotação acima do standard, vermelho abaixo.
+            {t("postMatch.rotationStatsNote")}
           </p>
         </CardHeader>
         <CardContent>
@@ -406,10 +407,10 @@ function Summary({
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Target className="h-4 w-4 text-primary" /> Ataque
+              <Target className="h-4 w-4 text-primary" /> {t("postMatch.attackHeatmap")}
             </CardTitle>
             <p className="text-xs text-muted-foreground">
-              Onde caíram os ataques no campo adversário ({s.attackHeatmap.total}).
+              {t("postMatch.attackHeatmapNote", { count: s.attackHeatmap.total })}
             </p>
           </CardHeader>
           <CardContent>
@@ -417,17 +418,17 @@ function Summary({
               zones={s.attackHeatmap.zones}
               maxCount={s.attackHeatmap.maxCount}
               side="opponent"
-              ariaLabel="Heatmap de ataques"
+              ariaLabel={t("postMatch.attackHeatmap")}
             />
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Swords className="h-4 w-4 text-primary" /> Serviço
+              <Swords className="h-4 w-4 text-primary" /> {t("postMatch.serveHeatmap")}
             </CardTitle>
             <p className="text-xs text-muted-foreground">
-              Onde caíram os serviços no campo adversário ({s.serveHeatmap.total}).
+              {t("postMatch.serveHeatmapNote", { count: s.serveHeatmap.total })}
             </p>
           </CardHeader>
           <CardContent>
@@ -435,17 +436,17 @@ function Summary({
               zones={s.serveHeatmap.zones}
               maxCount={s.serveHeatmap.maxCount}
               side="opponent"
-              ariaLabel="Heatmap de serviços"
+              ariaLabel={t("postMatch.serveHeatmap")}
             />
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Activity className="h-4 w-4 text-primary" /> Recepção
+              <Activity className="h-4 w-4 text-primary" /> {t("postMatch.receptionHeatmap")}
             </CardTitle>
             <p className="text-xs text-muted-foreground">
-              Onde a equipa recebeu na nossa metade ({s.receptionHeatmap.total}).
+              {t("postMatch.receptionHeatmapNote", { count: s.receptionHeatmap.total })}
             </p>
           </CardHeader>
           <CardContent>
@@ -453,23 +454,21 @@ function Summary({
               zones={s.receptionHeatmap.zones}
               maxCount={s.receptionHeatmap.maxCount}
               side="ours"
-              ariaLabel="Heatmap de recepções"
+              ariaLabel={t("postMatch.receptionHeatmap")}
             />
           </CardContent>
         </Card>
       </section>
 
-      {/* Distribuição de setter */}
+      {/* Setter distribution */}
       {s.setters.length > 0 && (
         <section className="space-y-3">
           <div>
             <h2 className="text-base font-semibold flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-primary" /> Distribuição de
-              setter
+              <TrendingUp className="h-4 w-4 text-primary" /> {t("postMatch.setterDistribution")}
             </h2>
             <p className="text-xs text-muted-foreground">
-              Para onde cada distribuidor enviou bola, e quantas terminaram
-              em ponto.
+              {t("postMatch.setterNote")}
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -480,15 +479,15 @@ function Summary({
         </section>
       )}
 
-      {/* Vídeo + momentos taggados */}
+      {/* Video + tagged moments */}
       {s.videoUrl && (
         <Card className="print-hide">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <Video className="h-4 w-4 text-primary" /> Replay com tags
+              <Video className="h-4 w-4 text-primary" /> {t("postMatch.videoReplay")}
               {s.taggedMoments.length > 0 && (
                 <Badge variant="secondary" className="ml-1">
-                  {s.taggedMoments.length} momento(s)
+                  {t("postMatch.taggedCount", { count: s.taggedMoments.length })}
                 </Badge>
               )}
             </CardTitle>
@@ -497,8 +496,7 @@ function Summary({
             <VideoPanel ref={videoRef} url={s.videoUrl} />
             {s.taggedMoments.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Ainda sem acções taggadas com vídeo. Regista acções no Live
-                Scout enquanto o vídeo está a correr para as ver aqui.
+                {t("postMatch.noTaggedMoments")}
               </p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
@@ -534,34 +532,33 @@ function Summary({
         </Card>
       )}
 
-      {/* Tabela de jogadoras */}
+      {/* Player stats table */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-primary" /> Estatísticas por
-            jogadora
+            <TrendingUp className="h-4 w-4 text-primary" /> {t("postMatch.playerStats")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {s.players.length === 0 ? (
             <div className="text-center text-muted-foreground text-sm py-8">
-              Sem acções individuais registadas neste jogo.
+              {t("postMatch.noPlayerActions")}
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="text-xs uppercase tracking-wide text-muted-foreground">
                   <tr className="border-b">
-                    <th className="text-left py-2 pr-2">Jogadora</th>
-                    <th className="text-right py-2 px-2">Rat.</th>
-                    <th className="text-right py-2 px-2">K</th>
-                    <th className="text-right py-2 px-2">Err.</th>
-                    <th className="text-right py-2 px-2">K%</th>
-                    <th className="text-right py-2 px-2">Eff.</th>
-                    <th className="text-right py-2 px-2">Ace</th>
-                    <th className="text-right py-2 px-2">Blk</th>
-                    <th className="text-right py-2 px-2">Dig</th>
-                    <th className="text-right py-2 pl-2">Pass</th>
+                    <th className="text-left py-2 pr-2">{t("postMatch.table.player")}</th>
+                    <th className="text-right py-2 px-2">{t("postMatch.table.rating")}</th>
+                    <th className="text-right py-2 px-2">{t("postMatch.table.kills")}</th>
+                    <th className="text-right py-2 px-2">{t("postMatch.table.errors")}</th>
+                    <th className="text-right py-2 px-2">{t("postMatch.table.killPct")}</th>
+                    <th className="text-right py-2 px-2">{t("postMatch.table.eff")}</th>
+                    <th className="text-right py-2 px-2">{t("postMatch.table.aces")}</th>
+                    <th className="text-right py-2 px-2">{t("postMatch.table.blocks")}</th>
+                    <th className="text-right py-2 px-2">{t("postMatch.table.digs")}</th>
+                    <th className="text-right py-2 pl-2">{t("postMatch.table.passRating")}</th>
                   </tr>
                 </thead>
                 <tbody>

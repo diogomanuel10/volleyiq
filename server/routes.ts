@@ -27,6 +27,8 @@ import type { PatternDetectionInput } from "@shared/types";
 
 export const router = Router();
 
+const SUPPORTED_LANGUAGES = ["pt-PT", "en", "es", "fr"] as const;
+
 // Todas as rotas exigem auth (dev bypass em desenvolvimento).
 router.use(requireAuth);
 
@@ -713,4 +715,20 @@ router.post("/matches/:matchId/substitutions", requireMatchAccess, async (req, r
 router.delete("/substitutions/:id", requireSubstitutionAccess, async (req, res) => {
   await storage.deleteSubstitution(req.params.id);
   res.status(204).end();
+});
+
+// ── User Preferences ──────────────────────────────────────────────────────────
+router.get("/user/preferences", async (req, res) => {
+  const uid = req.user!.uid;
+  const prefs = await storage.getUserPreferences(uid);
+  res.json({ language: prefs?.language ?? "pt-PT" });
+});
+
+router.patch("/user/preferences", async (req, res) => {
+  const uid = req.user!.uid;
+  const langSchema = z.object({ language: z.enum(SUPPORTED_LANGUAGES) });
+  const parsed = langSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json(parsed.error.flatten());
+  const prefs = await storage.upsertUserPreferences(uid, parsed.data.language);
+  res.json({ language: prefs?.language ?? parsed.data.language });
 });
