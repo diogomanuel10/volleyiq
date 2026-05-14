@@ -1,7 +1,8 @@
 {
   "name": "VolleyIQ",
   "short_name": "VolleyIQ",
-  "description": "Volleyball Analytics Platform",
+  "description": "Plataforma de análise de voleibol",
+  "lang": "pt-PT",
   "theme_color": "#0f172a",
   "background_color": "#0f172a",
   "display": "standalone",
