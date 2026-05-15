@@ -816,18 +816,18 @@
     "plans": {
       "basic": {
         "name": "Basic",
-        "price": "Gratis",
+        "price": "7 dias grátis",
         "blurb": "Para probar el producto"
       },
       "pro": {
         "name": "Pro",
-        "price": "€29",
+        "price": "€39",
         "period": "/mes",
         "blurb": "Para entrenadores y clubes pequeños"
       },
       "club": {
         "name": "Club",
-        "price": "€79",
+        "price": "€119",
         "period": "/mes",
         "blurb": "Para clubes con múltiples equipos"
       }
