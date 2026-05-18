@@ -5,7 +5,6 @@ import {
   Users,
   Activity,
   TrendingUp,
-  Plus,
   ArrowRight,
   CheckCircle2,
   XCircle,
@@ -82,22 +81,14 @@ function ClubDashboardContent() {
   return (
     <div className="p-4 md:p-8 max-w-screen-xl mx-auto space-y-6">
       {/* Header */}
-      <header className="flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
-            <Building2 className="h-7 w-7 text-primary" />
-            Club Dashboard
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Vista agregada de todas as tuas equipas
-          </p>
-        </div>
-        <Link href="/settings">
-          <Button variant="outline" size="sm" className="gap-2">
-            <Plus className="h-4 w-4" />
-            Nova equipa
-          </Button>
-        </Link>
+      <header>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
+          <Building2 className="h-7 w-7 text-primary" />
+          Club Dashboard
+        </h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          Vista agregada de todas as tuas equipas · Para criar uma nova usa o switcher no topo da barra lateral.
+        </p>
       </header>
 
       {/* Aggregate KPIs */}
