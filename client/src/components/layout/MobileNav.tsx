@@ -18,6 +18,8 @@ import {
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { usePlanGuard } from "@/hooks/usePlanGuard";
+import { Building2 } from "lucide-react";
 
 const primaryNavKeys = [
   { href: "/", icon: LayoutDashboard, key: "dashboard" },
@@ -46,6 +48,11 @@ export function MobileNav() {
   const [location] = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { t } = useTranslation();
+  const guard = usePlanGuard();
+  const clubNav = guard.meetsMinimum("club")
+    ? [{ href: "/club", icon: Building2, key: "clubDashboard" as const, label: "Club Dashboard" }]
+    : [];
+  const extendedNav = [...allNavKeys, ...clubNav];
 
   return (
     <>
@@ -113,11 +120,12 @@ export function MobileNav() {
 
             {/* All options */}
             <ul className="p-3 grid grid-cols-1 gap-0.5 pb-8">
-              {allNavKeys.map((it) => {
+              {extendedNav.map((it) => {
                 const active =
                   it.href === "/"
                     ? location === "/"
                     : location === it.href || location.startsWith(it.href + "/");
+                const label = "label" in it ? String(it.label) : t(`nav.${it.key}`);
                 return (
                   <li key={it.href}>
                     <Link
@@ -131,7 +139,7 @@ export function MobileNav() {
                       )}
                     >
                       <it.icon className="h-5 w-5 shrink-0" />
-                      {t(`nav.${it.key}`)}
+                      {label}
                     </Link>
                   </li>
                 );

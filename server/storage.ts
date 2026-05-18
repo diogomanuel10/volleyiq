@@ -195,6 +195,23 @@ export async function countMatchesForTeam(teamId: string) {
   return row?.n ?? 0;
 }
 
+export async function countPlayersForTeam(teamId: string) {
+  const [row] = await db
+    .select({ n: count() })
+    .from(players)
+    .where(and(eq(players.teamId, teamId), eq(players.active, true)));
+  return row?.n ?? 0;
+}
+
+export async function listRecentMatchesForTeam(teamId: string, limit: number) {
+  return db
+    .select()
+    .from(matches)
+    .where(eq(matches.teamId, teamId))
+    .orderBy(desc(matches.date))
+    .limit(limit);
+}
+
 export async function updateTeamPlan(
   teamId: string,
   plan: "individual" | "basic" | "pro" | "club",

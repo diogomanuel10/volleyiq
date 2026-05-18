@@ -45,6 +45,46 @@ router.get("/teams", async (req, res) => {
   res.json(list);
 });
 
+// Club dashboard — resumo leve de todas as equipas do utilizador
+router.get("/club/summary", async (req, res) => {
+  const teams = await storage.listTeamsForUser(req.user!.uid);
+  const summaries = await Promise.all(
+    teams.map(async (team) => {
+      const [matchCount, playerCount, recentMatches] = await Promise.all([
+        storage.countMatchesForTeam(team.id),
+        storage.countPlayersForTeam(team.id),
+        storage.listRecentMatchesForTeam(team.id, 6),
+      ]);
+      const finished = recentMatches.filter((m) => m.status === "finished");
+      const wins = finished.filter((m) => m.setsWon > m.setsLost).length;
+      const losses = finished.filter((m) => m.setsLost > m.setsWon).length;
+      const lastMatch = recentMatches[0] ?? null;
+      return {
+        id: team.id,
+        name: team.name,
+        club: team.club,
+        category: team.category,
+        plan: team.plan,
+        primaryColor: team.primaryColor,
+        matchCount,
+        playerCount,
+        wins,
+        losses,
+        lastMatchDate: lastMatch?.date ?? null,
+        lastMatchOpponent: lastMatch?.opponent ?? null,
+        lastMatchResult: lastMatch
+          ? lastMatch.setsWon > lastMatch.setsLost
+            ? "win"
+            : lastMatch.setsLost > lastMatch.setsWon
+            ? "loss"
+            : null
+          : null,
+      };
+    }),
+  );
+  res.json(summaries);
+});
+
 router.post("/teams", async (req, res) => {
   const parsed = insertTeamSchema.safeParse({
     ...req.body,

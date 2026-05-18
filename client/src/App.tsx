@@ -20,6 +20,7 @@ import Opponents from "@/pages/Opponents";
 import OpponentDetail from "@/pages/OpponentDetail";
 import TeamSettings from "@/pages/TeamSettings";
 import Profile from "@/pages/Profile";
+import ClubDashboard from "@/pages/ClubDashboard";
 
 export default function App() {
   const { isAuthed, isLoading: authLoading } = useAuth();
@@ -66,6 +67,7 @@ function AuthedApp() {
           <Route path="/scenario" component={Scenario} />
           <Route path="/post-match/:matchId?" component={PostMatch} />
           <Route path="/second-screen/:matchId" component={SecondScreen} />
+          <Route path="/club" component={ClubDashboard} />
           <Route path="/pricing" component={Pricing} />
           <Route path="/settings" component={TeamSettings} />
           <Route path="/profile" component={Profile} />

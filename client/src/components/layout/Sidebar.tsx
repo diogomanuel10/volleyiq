@@ -11,12 +11,14 @@ import {
   ClipboardCheck,
   Sparkles,
   Settings,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebarCollapsed } from "@/lib/sidebar";
 import { TeamSwitcher } from "./TeamSwitcher";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { usePlanGuard } from "@/hooks/usePlanGuard";
 
 const NAV_ITEMS = [
   { href: "/", icon: LayoutDashboard, key: "dashboard" },
@@ -38,6 +40,14 @@ export function Sidebar() {
   const [hovered, setHovered] = useState(false);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { t } = useTranslation();
+  const guard = usePlanGuard();
+
+  const navItems = [
+    ...NAV_ITEMS,
+    ...(guard.meetsMinimum("club")
+      ? [{ href: "/club", icon: Building2, key: "clubDashboard" as const }]
+      : []),
+  ];
 
   // Expande se não estiver collapsed (pin) OU se estiver em hover
   const expanded = !collapsed || hovered;
@@ -87,8 +97,8 @@ export function Sidebar() {
         <TeamSwitcher collapsed={!expanded} />
       </div>
       <nav className={cn("flex-1 space-y-0.5", expanded ? "p-2" : "p-1.5")}>
-        {NAV_ITEMS.map((it) => {
-          const label = t(`nav.${it.key}`);
+        {navItems.map((it) => {
+          const label = it.key === "clubDashboard" ? "Club Dashboard" : t(`nav.${it.key}`);
           const active =
             it.href === "/"
               ? location === "/"
