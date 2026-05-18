@@ -103,10 +103,14 @@ function CreateTeamForm() {
       toast.success(t("onboarding.form.created"));
       qc.invalidateQueries({ queryKey: ["teams"] });
     },
-    onError: (err) => {
-      toast.error(t("onboarding.form.createError"), {
-        description: err instanceof Error ? err.message : String(err),
-      });
+    onError: (err: any) => {
+      if (err?.body?.error === "plan_limit_teams") {
+        toast.error(`Limite de ${err.body.maxTeams} equipa(s) atingido. Faz upgrade do plano para criar mais equipas.`);
+      } else {
+        toast.error(t("onboarding.form.createError"), {
+          description: err instanceof Error ? err.message : String(err),
+        });
+      }
     },
   });
 

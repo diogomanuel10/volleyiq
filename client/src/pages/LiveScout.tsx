@@ -59,6 +59,7 @@ import { WelcomeBanner } from "@/components/scout/WelcomeBanner";
 import { LastActionPill } from "@/components/scout/LastActionPill";
 import { StepProgress } from "@/components/scout/StepProgress";
 import { SuggestionsPanel } from "@/components/scout/SuggestionsPanel";
+import { PlanGate } from "@/components/PlanGate";
 import {
   buildSuggestions,
   type ScoutingHistory,
@@ -1036,11 +1037,13 @@ function Scout({
         {/* Sugestões + Log lateral + vídeo (opcional) */}
         <aside className="flex flex-col gap-3 min-w-0 lg:min-h-0 lg:overflow-hidden">
           <div className="lg:shrink-0">
-            <SuggestionsPanel
-              suggestions={suggestions}
-              hasLog={state.log.length > 0}
-              hasHistory={Boolean(historyQuery.data)}
-            />
+            <PlanGate feature="aiLiveSuggestions" overlay>
+              <SuggestionsPanel
+                suggestions={suggestions}
+                hasLog={state.log.length > 0}
+                hasHistory={Boolean(historyQuery.data)}
+              />
+            </PlanGate>
           </div>
           {match.videoUrl && (
             <div className="rounded-xl border bg-card p-3 md:p-4 space-y-2 lg:shrink-0">

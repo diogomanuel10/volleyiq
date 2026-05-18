@@ -348,7 +348,13 @@ function NewMatchDialog({
       toast.success(t("matches.newMatchDialog.created"));
       onCreated();
     },
-    onError: (err: any) => toast.error(err.message ?? t("matches.newMatchDialog.createError")),
+    onError: (err: any) => {
+      if (err?.body?.error === "plan_limit_matches") {
+        toast.error(`Limite de ${err.body.maxMatches} jogos atingido. Faz upgrade do plano para continuar.`);
+      } else {
+        toast.error(err.message ?? t("matches.newMatchDialog.createError"));
+      }
+    },
   });
 
   return (

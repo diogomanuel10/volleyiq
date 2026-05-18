@@ -32,6 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Match } from "@shared/schema";
 import type { DetectedPattern, PatternDetectionInput } from "@shared/types";
+import { PlanGate } from "@/components/PlanGate";
 
 interface ScoutingAggregation {
   opponent: string;
@@ -229,7 +230,8 @@ function Report({
         </Card>
       ) : (
         <>
-          {/* AI patterns */}
+          {/* AI patterns — Pro+ */}
+          <PlanGate feature="aiPatterns" overlay>
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
@@ -316,6 +318,7 @@ function Report({
               </Card>
             )}
           </section>
+          </PlanGate>
 
           {/* Charts */}
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
