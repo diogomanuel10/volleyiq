@@ -13,6 +13,7 @@ import {
   Upload,
   CalendarPlus,
   Eye,
+  Pencil,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTeam } from "@/hooks/useTeam";
@@ -63,6 +64,7 @@ export default function Matches() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [dvwOpen, setDvwOpen] = useState(false);
+  const [editMatch, setEditMatch] = useState<Match | null>(null);
 
   const matchesQuery = useQuery({
     queryKey: ["matches", team?.id],
@@ -134,6 +136,13 @@ export default function Matches() {
         onOpenChange={setDvwOpen}
         teamId={team.id}
       />
+
+      {editMatch && (
+        <EditMatchDialog
+          match={editMatch}
+          onClose={() => setEditMatch(null)}
+        />
+      )}
 
       <div className="flex flex-wrap gap-2 text-sm">
         {(["all", "scheduled", "live", "finished", "cancelled"] as const).map(
@@ -253,6 +262,13 @@ export default function Matches() {
                       <Link href={`/matchday/${m.id}`}>
                         <ClipboardCheck className="h-4 w-4" /> Match Day
                       </Link>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setEditMatch(m)}
+                    >
+                      <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
@@ -550,5 +566,97 @@ function NewMatchDialog({
         </DialogFooter>
       </form>
     </DialogContent>
+  );
+}
+
+function EditMatchDialog({ match, onClose }: { match: Match; onClose: () => void }) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [videoUrl, setVideoUrl] = useState(match.videoUrl ?? "");
+  const [notes, setNotes] = useState(match.notes ?? "");
+  const [competition, setCompetition] = useState(match.competition ?? "");
+  const [status, setStatus] = useState(match.status);
+
+  const updateMutation = useMutation({
+    mutationFn: (body: object) =>
+      api.patch<Match>(`/api/matches/${match.id}`, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["matches"] });
+      toast.success("Jogo actualizado.");
+      onClose();
+    },
+    onError: () => toast.error("Erro ao actualizar o jogo."),
+  });
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    updateMutation.mutate({
+      videoUrl: videoUrl.trim() || null,
+      notes: notes.trim() || null,
+      competition: competition.trim() || null,
+      status,
+    });
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Editar · vs. {match.opponent}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1">
+            <Label htmlFor="edit-video">{t("matches.newMatchDialog.videoUrl")}</Label>
+            <Input
+              id="edit-video"
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+              placeholder="https://youtube.com/watch?v=..."
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="edit-competition">Competição</Label>
+            <Input
+              id="edit-competition"
+              value={competition}
+              onChange={(e) => setCompetition(e.target.value)}
+              placeholder="Ex: Liga Nacional"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="edit-status">Estado</Label>
+            <select
+              id="edit-status"
+              value={status}
+              onChange={(e) => setStatus(e.target.value as Match["status"])}
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+            >
+              <option value="scheduled">Agendado</option>
+              <option value="live">A decorrer</option>
+              <option value="finished">Terminado</option>
+              <option value="cancelled">Cancelado</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="edit-notes">{t("matches.newMatchDialog.notes")}</Label>
+            <Textarea
+              id="edit-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+              placeholder={t("matches.newMatchDialog.notesPlaceholder")}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? "A guardar…" : "Guardar"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
