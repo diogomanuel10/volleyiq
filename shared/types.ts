@@ -213,7 +213,7 @@ export const ACTION_LABEL: Record<ActionType, string> = {
   freeball: "Ponto Direto",
 };
 
-export const PLANS = ["basic", "pro", "club"] as const;
+export const PLANS = ["basic", "individual", "pro", "club"] as const;
 export type Plan = (typeof PLANS)[number];
 
 export const CHECKLIST_CATEGORIES = [

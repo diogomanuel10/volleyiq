@@ -38,8 +38,10 @@ export const teams = pgTable("teams", {
   primaryColor: text("primary_color"),
   plan: text("plan", { enum: PLANS }).notNull().default("basic"),
   ownerUid: text("owner_uid").notNull(),
-  // Código de convite de 6 chars — partilhado pelo owner para adicionar membros.
   inviteCode: text("invite_code"),
+  trialEndsAt: timestamp("trial_ends_at"),
+  subscribedAt: timestamp("subscribed_at"),
+  easyPaySubscriptionId: text("easypay_subscription_id"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

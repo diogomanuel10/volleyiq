@@ -63,7 +63,8 @@ export async function listTeamsForUser(uid: string) {
 export async function createTeam(uid: string, data: InsertTeam) {
   const id = newId();
   const inviteCode = newInviteCode();
-  await db.insert(teams).values({ ...data, id, ownerUid: uid, inviteCode });
+  const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await db.insert(teams).values({ ...data, id, ownerUid: uid, inviteCode, trialEndsAt });
   await db.insert(memberships).values({
     id: newId(),
     teamId: id,
@@ -72,6 +73,35 @@ export async function createTeam(uid: string, data: InsertTeam) {
   });
   const [row] = await db.select().from(teams).where(eq(teams.id, id));
   return row!;
+}
+
+export async function getTeamById(teamId: string) {
+  const [row] = await db.select().from(teams).where(eq(teams.id, teamId));
+  return row ?? null;
+}
+
+export async function activateSubscription(
+  teamId: string,
+  plan: "basic" | "individual" | "pro" | "club",
+  easyPaySubscriptionId?: string,
+) {
+  await db
+    .update(teams)
+    .set({
+      plan,
+      subscribedAt: new Date(),
+      ...(easyPaySubscriptionId ? { easyPaySubscriptionId } : {}),
+    })
+    .where(eq(teams.id, teamId));
+  const [row] = await db.select().from(teams).where(eq(teams.id, teamId));
+  return row ?? null;
+}
+
+export async function cancelSubscription(teamId: string) {
+  await db
+    .update(teams)
+    .set({ subscribedAt: null, easyPaySubscriptionId: null })
+    .where(eq(teams.id, teamId));
 }
 
 export async function getTeamByInviteCode(code: string) {

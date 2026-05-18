@@ -5,11 +5,6 @@ import type { Team } from "@shared/schema";
 
 const STORAGE_KEY = "volleyiq:teamId";
 
-/**
- * Gere o "team atual" do utilizador. Persiste a selecção em localStorage.
- * Se o utilizador ainda não tem equipa nenhuma, devolve `team: null` —
- * cabe ao caller encaminhar para o ecrã de onboarding.
- */
 export function useTeam() {
   const qc = useQueryClient();
 
@@ -37,11 +32,24 @@ export function useTeam() {
     qc.invalidateQueries();
   }
 
+  function trialDaysLeft(): number {
+    if (!current?.trialEndsAt) return 0;
+    const ms = new Date(current.trialEndsAt).getTime() - Date.now();
+    return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
+  }
+
+  const isSubscribed = Boolean(current?.subscribedAt);
+  const daysLeft = trialDaysLeft();
+  const isTrialExpired = !isSubscribed && daysLeft === 0 && Boolean(current);
+
   return {
     teams,
     team: current,
     isLoading: teamsQuery.isLoading,
     hasTeams: teams.length > 0,
     setTeam,
+    isSubscribed,
+    trialDaysLeft: daysLeft,
+    isTrialExpired,
   };
 }
