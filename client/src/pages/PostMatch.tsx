@@ -1,6 +1,6 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Link, useParams, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
   ArrowLeft,
@@ -20,6 +20,9 @@ import {
   ClipboardList,
   Radio,
   CalendarPlus,
+  Tag,
+  X,
+  Loader2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -47,6 +50,12 @@ import {
   type SetterRow,
 } from "@/components/scout/SetterDistributionCard";
 import type { Match } from "@shared/schema";
+import {
+  ACTION_TYPES,
+  RESULTS_BY_ACTION,
+  type ActionType,
+  type ActionResult,
+} from "@shared/types";
 
 interface PlayerLine {
   playerId: string;
@@ -233,6 +242,31 @@ function Summary({
   const { t } = useTranslation();
   const guard = usePlanGuard();
   const videoRef = useRef<VideoPanelHandle>(null);
+  const qc = useQueryClient();
+
+  // Tagged moments filters
+  const [filterAction, setFilterAction] = useState<string | null>(null);
+  const [filterPlayer, setFilterPlayer] = useState<string | null>(null);
+
+  // Manual video tagger state
+  const [taggingAt, setTaggingAt] = useState<number | null>(null);
+  const [tagAction, setTagAction] = useState<ActionType | "">("");
+  const [tagPlayer, setTagPlayer] = useState<string>("");
+  const [tagResult, setTagResult] = useState<ActionResult | "">("");
+
+  const tagMutation = useMutation({
+    mutationFn: (body: object) => api.post(`/api/actions`, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["summary", matchId] });
+      toast.success("Momento marcado!");
+      setTaggingAt(null);
+      setTagAction("");
+      setTagPlayer("");
+      setTagResult("");
+    },
+    onError: () => toast.error("Erro ao marcar momento."),
+  });
+
   const summaryQuery = useQuery({
     queryKey: ["summary", matchId],
     queryFn: () =>
@@ -554,51 +588,234 @@ function Summary({
       {s.videoUrl && (
         <Card className="print-hide">
           <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Video className="h-4 w-4 text-primary" /> {t("postMatch.videoReplay")}
-              {s.taggedMoments.length > 0 && (
-                <Badge variant="secondary" className="ml-1">
-                  {t("postMatch.taggedCount", { count: s.taggedMoments.length })}
-                </Badge>
-              )}
-            </CardTitle>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Video className="h-4 w-4 text-primary" /> {t("postMatch.videoReplay")}
+                {s.taggedMoments.length > 0 && (
+                  <Badge variant="secondary" className="ml-1">
+                    {t("postMatch.taggedCount", { count: s.taggedMoments.length })}
+                  </Badge>
+                )}
+              </CardTitle>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 h-7 text-xs"
+                onClick={() => {
+                  const t = videoRef.current?.getCurrentTime() ?? 0;
+                  setTaggingAt(t);
+                  setTagAction("");
+                  setTagPlayer("");
+                  setTagResult("");
+                }}
+              >
+                <Tag className="h-3.5 w-3.5" /> Marcar momento
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-3">
             <VideoPanel ref={videoRef} url={s.videoUrl} />
-            {s.taggedMoments.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                {t("postMatch.noTaggedMoments")}
-              </p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                {s.taggedMoments.map((m) => (
-                  <button
-                    key={m.actionId}
-                    onClick={() => videoRef.current?.seekTo(m.videoTimeSec)}
-                    className="text-left rounded-md border bg-card p-2 hover:bg-accent transition-colors flex items-center gap-2"
-                  >
-                    <PlayCircle className="h-4 w-4 text-primary shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs text-muted-foreground font-mono">
-                        {fmtTime(m.videoTimeSec)}
-                      </div>
-                      <div className="text-sm truncate">
-                        {m.playerNumber != null && (
-                          <span className="font-semibold">
-                            #{m.playerNumber}{" "}
-                          </span>
-                        )}
-                        {m.playerName ?? "—"}
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="text-[10px] shrink-0">
-                      {ACTION_SHORT[m.type] ?? m.type} ·{" "}
-                      {RESULT_SHORT[m.result] ?? m.result}
-                    </Badge>
+
+            {/* Manual tagging form */}
+            {taggingAt !== null && (
+              <div className="rounded-lg border bg-muted/40 p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium flex items-center gap-1.5">
+                    <Tag className="h-4 w-4 text-primary" />
+                    Marcar em <span className="font-mono text-primary">{fmtTime(taggingAt)}</span>
+                  </span>
+                  <button onClick={() => setTaggingAt(null)} className="text-muted-foreground hover:text-foreground">
+                    <X className="h-4 w-4" />
                   </button>
-                ))}
+                </div>
+
+                {/* Player select */}
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Jogador (opcional)</p>
+                  <select
+                    value={tagPlayer}
+                    onChange={(e) => setTagPlayer(e.target.value)}
+                    className="w-full rounded-md border bg-background px-2 py-1.5 text-sm"
+                  >
+                    <option value="">— sem jogador —</option>
+                    {s.players.map((p) => (
+                      <option key={p.playerId} value={p.playerId}>
+                        #{p.number} {p.firstName} {p.lastName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Action type */}
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Tipo de ação</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ACTION_TYPES.filter((a) => a !== "freeball").map((a) => (
+                      <button
+                        key={a}
+                        onClick={() => { setTagAction(a); setTagResult(""); }}
+                        className={cn(
+                          "rounded-md border px-2.5 py-1 text-xs transition-colors",
+                          tagAction === a
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "hover:bg-accent",
+                        )}
+                      >
+                        {ACTION_SHORT[a] ?? a}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Result */}
+                {tagAction && (
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Resultado</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {RESULTS_BY_ACTION[tagAction].map((r) => (
+                        <button
+                          key={r}
+                          onClick={() => setTagResult(r)}
+                          className={cn(
+                            "rounded-md border px-2.5 py-1 text-xs transition-colors",
+                            tagResult === r
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "hover:bg-accent",
+                          )}
+                        >
+                          {RESULT_SHORT[r] ?? r}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <Button
+                  size="sm"
+                  className="w-full gap-1.5"
+                  disabled={!tagAction || !tagResult || tagMutation.isPending}
+                  onClick={() => {
+                    if (!tagAction || !tagResult) return;
+                    tagMutation.mutate({
+                      matchId,
+                      playerId: tagPlayer || undefined,
+                      type: tagAction,
+                      result: tagResult,
+                      videoTimeSec: Math.round(taggingAt!),
+                      side: "home",
+                    });
+                  }}
+                >
+                  {tagMutation.isPending
+                    ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> A guardar…</>
+                    : <><Tag className="h-3.5 w-3.5" /> Guardar momento</>}
+                </Button>
               </div>
             )}
+
+            {/* Filters */}
+            {s.taggedMoments.length > 0 && (
+              <div className="flex flex-wrap gap-2 items-center">
+                <span className="text-xs text-muted-foreground">Filtrar:</span>
+                {/* Action filter chips */}
+                {Array.from(new Set(s.taggedMoments.map((m) => m.type))).map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setFilterAction(filterAction === type ? null : type)}
+                    className={cn(
+                      "rounded-full border px-2.5 py-0.5 text-xs transition-colors",
+                      filterAction === type
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "hover:bg-accent",
+                    )}
+                  >
+                    {ACTION_SHORT[type] ?? type}
+                  </button>
+                ))}
+                {/* Divider */}
+                {s.taggedMoments.some((m) => m.playerName) && (
+                  <span className="text-muted-foreground text-xs">·</span>
+                )}
+                {/* Player filter chips */}
+                {Array.from(
+                  new Map(
+                    s.taggedMoments
+                      .filter((m) => m.playerName)
+                      .map((m) => [m.playerName, m.playerName])
+                  ).values()
+                ).map((name) => (
+                  <button
+                    key={name}
+                    onClick={() => setFilterPlayer(filterPlayer === name ? null : name)}
+                    className={cn(
+                      "rounded-full border px-2.5 py-0.5 text-xs transition-colors",
+                      filterPlayer === name
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "hover:bg-accent",
+                    )}
+                  >
+                    {name}
+                  </button>
+                ))}
+                {/* Clear filters */}
+                {(filterAction || filterPlayer) && (
+                  <button
+                    onClick={() => { setFilterAction(null); setFilterPlayer(null); }}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-3 w-3" /> Limpar
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Moments grid */}
+            {(() => {
+              const filtered = s.taggedMoments.filter((m) => {
+                if (filterAction && m.type !== filterAction) return false;
+                if (filterPlayer && m.playerName !== filterPlayer) return false;
+                return true;
+              });
+              if (s.taggedMoments.length === 0)
+                return (
+                  <p className="text-sm text-muted-foreground">
+                    {t("postMatch.noTaggedMoments")}
+                  </p>
+                );
+              if (filtered.length === 0)
+                return (
+                  <p className="text-sm text-muted-foreground">
+                    Nenhum momento para os filtros seleccionados.
+                  </p>
+                );
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {filtered.map((m) => (
+                    <button
+                      key={m.actionId}
+                      onClick={() => videoRef.current?.seekTo(m.videoTimeSec)}
+                      className="text-left rounded-md border bg-card p-2 hover:bg-accent transition-colors flex items-center gap-2"
+                    >
+                      <PlayCircle className="h-4 w-4 text-primary shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs text-muted-foreground font-mono">
+                          {fmtTime(m.videoTimeSec)}
+                        </div>
+                        <div className="text-sm truncate">
+                          {m.playerNumber != null && (
+                            <span className="font-semibold">#{m.playerNumber} </span>
+                          )}
+                          {m.playerName ?? "—"}
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] shrink-0">
+                        {ACTION_SHORT[m.type] ?? m.type} · {RESULT_SHORT[m.result] ?? m.result}
+                      </Badge>
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
       )}
