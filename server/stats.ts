@@ -1264,3 +1264,255 @@ function groupBy<T, K>(arr: T[], key: (t: T) => K) {
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const round3 = (n: number) => Math.round(n * 1000) / 1000;
+
+// ── Proactive insights ────────────────────────────────────────────────────
+
+export type InsightLevel = "positive" | "warning" | "alert" | "info";
+export type InsightCategory = "team" | "player" | "rotation" | "trend";
+
+export interface Insight {
+  id: string;
+  level: InsightLevel;
+  category: InsightCategory;
+  title: string;
+  body: string;
+}
+
+export async function buildInsights(teamId: string): Promise<Insight[]> {
+  const insights: Insight[] = [];
+
+  // ── Fetch data ────────────────────────────────────────────────────────
+  const allMatches = await db
+    .select()
+    .from(matches)
+    .where(eq(matches.teamId, teamId))
+    .orderBy(desc(matches.date));
+
+  const finishedMatches = allMatches.filter((m) => m.status === "finished");
+  if (finishedMatches.length < 2) return insights; // not enough data
+
+  const allMatchIds = finishedMatches.map((m) => m.id);
+  const allActions = await db
+    .select()
+    .from(actions)
+    .where(inArray(actions.matchId, allMatchIds));
+
+  const roster = await db.select().from(players).where(eq(players.teamId, teamId));
+  const rosterById = new Map(roster.map((p) => [p.id, p]));
+
+  const actionsByMatch = new Map<string, Action[]>();
+  for (const m of finishedMatches) actionsByMatch.set(m.id, []);
+  for (const a of allActions) {
+    const bucket = actionsByMatch.get(a.matchId);
+    if (bucket) bucket.push(a);
+  }
+
+  // ── 1. Win/loss streak ────────────────────────────────────────────────
+  const recent5 = finishedMatches.slice(0, 5);
+  let streak = 0;
+  const firstResult = recent5[0]?.setsWon > recent5[0]?.setsLost ? "win" : "loss";
+  for (const m of recent5) {
+    const res = m.setsWon > m.setsLost ? "win" : "loss";
+    if (res === firstResult) streak++;
+    else break;
+  }
+  if (streak >= 3 && firstResult === "win") {
+    insights.push({
+      id: "streak-win",
+      level: "positive",
+      category: "team",
+      title: `${streak} vitórias consecutivas`,
+      body: `A equipa está em boa forma nas últimas ${streak} partidas. Aproveita o momento.`,
+    });
+  } else if (streak >= 2 && firstResult === "loss") {
+    insights.push({
+      id: "streak-loss",
+      level: "alert",
+      category: "team",
+      title: `${streak} derrotas consecutivas`,
+      body: `A equipa perdeu as últimas ${streak} partidas. Analisa o padrão e ajusta antes da próxima.`,
+    });
+  }
+
+  // ── 2. Kill% trend (últimas 2 vs. anteriores) ────────────────────────
+  if (finishedMatches.length >= 4) {
+    const last2 = finishedMatches.slice(0, 2).map((m) => actionsByMatch.get(m.id) ?? []);
+    const prev2 = finishedMatches.slice(2, 4).map((m) => actionsByMatch.get(m.id) ?? []);
+    const killLast = killPct(last2.flat());
+    const killPrev = killPct(prev2.flat());
+    const delta = killLast - killPrev;
+    if (delta <= -8) {
+      insights.push({
+        id: "kill-drop",
+        level: "warning",
+        category: "trend",
+        title: `Kill% caiu ${Math.abs(round1(delta))} pp`,
+        body: `Nas últimas 2 partidas o Kill% foi ${round1(killLast)}%, contra ${round1(killPrev)}% nas 2 anteriores.`,
+      });
+    } else if (delta >= 8) {
+      insights.push({
+        id: "kill-rise",
+        level: "positive",
+        category: "trend",
+        title: `Kill% subiu ${round1(delta)} pp`,
+        body: `Nas últimas 2 partidas o Kill% foi ${round1(killLast)}%, contra ${round1(killPrev)}% nas 2 anteriores.`,
+      });
+    }
+  }
+
+  // ── 3. Side-out trend ────────────────────────────────────────────────
+  if (finishedMatches.length >= 4) {
+    const last2 = finishedMatches.slice(0, 2).map((m) => actionsByMatch.get(m.id) ?? []);
+    const prev2 = finishedMatches.slice(2, 4).map((m) => actionsByMatch.get(m.id) ?? []);
+    const soLast = sideOutPct(last2.flat());
+    const soPrev = sideOutPct(prev2.flat());
+    const delta = soLast - soPrev;
+    if (delta <= -10) {
+      insights.push({
+        id: "sideout-drop",
+        level: "warning",
+        category: "trend",
+        title: `Side-Out% caiu ${Math.abs(round1(delta))} pp`,
+        body: `Receção/organização em queda nas últimas 2 partidas: ${round1(soLast)}% vs ${round1(soPrev)}%.`,
+      });
+    }
+  }
+
+  // ── 4. Worst rotation ────────────────────────────────────────────────
+  const rotStats = buildRotationStats(allActions);
+  const rotWithReceive = rotStats.filter((r) => r.receiveRallies >= 5);
+  if (rotWithReceive.length > 0) {
+    const worst = rotWithReceive.reduce((a, b) =>
+      a.sideOutPct < b.sideOutPct ? a : b,
+    );
+    if (worst.sideOutPct < 42) {
+      insights.push({
+        id: `rotation-weak-${worst.rotation}`,
+        level: "warning",
+        category: "rotation",
+        title: `Rotação P${worst.rotation} fraca em receção`,
+        body: `Side-Out de apenas ${worst.sideOutPct}% nesta rotação (${worst.receiveRallies} ações). Considera ajustar o libero ou a cobertura.`,
+      });
+    }
+    const best = rotWithReceive.reduce((a, b) =>
+      a.sideOutPct > b.sideOutPct ? a : b,
+    );
+    if (best.sideOutPct >= 70 && best.rotation !== worst.rotation) {
+      insights.push({
+        id: `rotation-strong-${best.rotation}`,
+        level: "positive",
+        category: "rotation",
+        title: `Rotação P${best.rotation} excelente em receção`,
+        body: `Side-Out de ${best.sideOutPct}% nesta rotação. Força a servir nesta posição quando possível.`,
+      });
+    }
+  }
+
+  // ── 5. Per-player serve error rate (últimas 3 partidas) ──────────────
+  const recent3Matches = finishedMatches.slice(0, 3);
+  if (recent3Matches.length >= 2) {
+    const recent3Actions = recent3Matches.flatMap((m) => actionsByMatch.get(m.id) ?? []);
+    const serveByPlayer = new Map<string, { total: number; errors: number }>();
+    for (const a of recent3Actions) {
+      if (a.type !== "serve" || !a.playerId) continue;
+      const b = serveByPlayer.get(a.playerId) ?? { total: 0, errors: 0 };
+      b.total++;
+      if (a.result === "error") b.errors++;
+      serveByPlayer.set(a.playerId, b);
+    }
+    for (const [pid, b] of serveByPlayer) {
+      if (b.total < 6) continue;
+      const errPct = (b.errors / b.total) * 100;
+      if (errPct >= 28) {
+        const p = rosterById.get(pid);
+        const name = p ? `#${p.number} ${p.firstName}` : "Jogadora";
+        insights.push({
+          id: `serve-error-${pid}`,
+          level: "warning",
+          category: "player",
+          title: `${name} com muitos erros de serviço`,
+          body: `${round1(errPct)}% de erros em serviço nas últimas ${recent3Matches.length} partidas (${b.errors}/${b.total}). Pode precisar de ajuste técnico.`,
+        });
+      }
+    }
+  }
+
+  // ── 6. Per-player attack efficiency (últimas 3 partidas) ─────────────
+  if (recent3Matches.length >= 2) {
+    const recent3Actions = recent3Matches.flatMap((m) => actionsByMatch.get(m.id) ?? []);
+    const atkByPlayer = new Map<string, { total: number; kills: number; errors: number }>();
+    for (const a of recent3Actions) {
+      if (a.type !== "attack" || !a.playerId) continue;
+      const b = atkByPlayer.get(a.playerId) ?? { total: 0, kills: 0, errors: 0 };
+      b.total++;
+      if (a.result === "kill") b.kills++;
+      if (a.result === "error" || a.result === "blocked") b.errors++;
+      atkByPlayer.set(a.playerId, b);
+    }
+    // Best attacker
+    let bestPid = "";
+    let bestEff = -Infinity;
+    for (const [pid, b] of atkByPlayer) {
+      if (b.total < 8) continue;
+      const eff = (b.kills - b.errors) / b.total;
+      if (eff > bestEff) { bestEff = eff; bestPid = pid; }
+    }
+    if (bestPid && bestEff >= 0.35) {
+      const p = rosterById.get(bestPid);
+      const name = p ? `#${p.number} ${p.firstName}` : "Jogadora";
+      insights.push({
+        id: `attack-hot-${bestPid}`,
+        level: "positive",
+        category: "player",
+        title: `${name} em grande forma no ataque`,
+        body: `Eficiência de ${round2(bestEff)} nas últimas ${recent3Matches.length} partidas. Aproveita para a usar nos momentos críticos.`,
+      });
+    }
+
+    // Worst attacker
+    let worstPid = "";
+    let worstEff = Infinity;
+    for (const [pid, b] of atkByPlayer) {
+      if (b.total < 8) continue;
+      const eff = (b.kills - b.errors) / b.total;
+      if (eff < worstEff) { worstEff = eff; worstPid = pid; }
+    }
+    if (worstPid && worstEff <= -0.10 && worstPid !== bestPid) {
+      const p = rosterById.get(worstPid);
+      const name = p ? `#${p.number} ${p.firstName}` : "Jogadora";
+      insights.push({
+        id: `attack-cold-${worstPid}`,
+        level: "warning",
+        category: "player",
+        title: `${name} em dificuldades no ataque`,
+        body: `Eficiência de ${round2(worstEff)} nas últimas ${recent3Matches.length} partidas. Considera reduzir as distribuições para ela nos momentos tensos.`,
+      });
+    }
+  }
+
+  // ── 7. Pass rating overview ───────────────────────────────────────────
+  const recentActions = finishedMatches.slice(0, 3).flatMap((m) => actionsByMatch.get(m.id) ?? []);
+  const pr = passRating(recentActions);
+  if (pr < 1.8 && recentActions.filter((a) => a.type === "reception").length >= 10) {
+    insights.push({
+      id: "pass-poor",
+      level: "alert",
+      category: "team",
+      title: `Receção abaixo do nível (${round2(pr)})`,
+      body: `O pass rating está em ${round2(pr)} nas últimas 3 partidas (referência: ≥ 2.0). Foca o treino na receção.`,
+    });
+  } else if (pr >= 2.5 && recentActions.filter((a) => a.type === "reception").length >= 10) {
+    insights.push({
+      id: "pass-excellent",
+      level: "positive",
+      category: "team",
+      title: `Receção excelente (${round2(pr)})`,
+      body: `Pass rating de ${round2(pr)} nas últimas 3 partidas. A equipa está a controlar bem a receção.`,
+    });
+  }
+
+  // Limit to 5 most relevant insights (sort: alert > warning > positive > info)
+  const order: InsightLevel[] = ["alert", "warning", "positive", "info"];
+  insights.sort((a, b) => order.indexOf(a.level) - order.indexOf(b.level));
+  return insights.slice(0, 6);
+}

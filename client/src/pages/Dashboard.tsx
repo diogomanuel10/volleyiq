@@ -27,6 +27,7 @@ import { TrendChart } from "@/components/charts/TrendChart";
 import { TeamRadar } from "@/components/charts/TeamRadar";
 import { RotationSideOut } from "@/components/charts/RotationSideOut";
 import { SetupGuide } from "@/components/SetupGuide";
+import { InsightsPanel } from "@/components/InsightsPanel";
 import { cn, formatPct } from "@/lib/utils";
 import type { Player, Match } from "@shared/schema";
 
@@ -269,6 +270,10 @@ export default function Dashboard() {
             </motion.div>
           ))}
         </section>
+      )}
+
+      {!isEmpty && real && real.sampleMatches >= 2 && (
+        <InsightsPanel teamId={team.id} />
       )}
 
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">

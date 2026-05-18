@@ -18,6 +18,7 @@ import { recommendTraining } from "./ai/training";
 import { mirrorStatus } from "./firestore";
 import {
   buildDashboard,
+  buildInsights,
   buildPlayerSummary,
   buildPostMatch,
   buildScoutingReport,
@@ -527,6 +528,15 @@ router.get(
   requireTeamAccess,
   async (req: any, res) => {
     const data = await buildTeamPlayerAggregates(req.teamId);
+    res.json(data);
+  },
+);
+
+router.get(
+  "/stats/team/:teamId/insights",
+  requireTeamAccess,
+  async (req: any, res) => {
+    const data = await buildInsights(req.teamId);
     res.json(data);
   },
 );
