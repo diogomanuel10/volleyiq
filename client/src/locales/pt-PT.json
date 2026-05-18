@@ -34,7 +34,8 @@
     "more": "Mais",
     "athletes": "Atletas",
     "livescout": "Live Scout",
-    "reports": "Relatório"
+    "reports": "Relatório",
+    "profile": "Perfil"
   },
   "topbar": {
     "welcome": "Bem-vinda de volta — vamos ler o jogo.",
@@ -942,6 +943,24 @@
       "importing": "A importar…",
       "imported": "Jogo importado com sucesso!",
       "importError": "Falha a importar ficheiro .dvw"
+    }
+  },
+  "profile": {
+    "title": "Perfil",
+    "account": "Conta",
+    "changePassword": "Alterar palavra-passe",
+    "currentPassword": "Palavra-passe actual",
+    "newPassword": "Nova palavra-passe",
+    "confirmPassword": "Confirmar nova palavra-passe",
+    "savePassword": "Guardar palavra-passe",
+    "success": "Palavra-passe alterada com sucesso.",
+    "googleAccount": "A tua conta usa o Google para autenticação — não tens palavra-passe para alterar aqui.",
+    "errors": {
+      "mismatch": "As novas palavras-passe não coincidem.",
+      "tooShort": "A palavra-passe precisa de pelo menos 6 caracteres.",
+      "wrongCurrent": "Palavra-passe actual incorrecta.",
+      "tooMany": "Demasiadas tentativas. Aguarda uns minutos.",
+      "generic": "Não foi possível alterar a palavra-passe. Tenta novamente."
     }
   },
   "keyboardHelp": {

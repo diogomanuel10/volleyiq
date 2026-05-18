@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { LogOut, User as UserIcon, Globe, ChevronDown } from "lucide-react";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
@@ -74,14 +75,18 @@ export function TopBar() {
         {t("topbar.welcome")}
       </div>
       <div className="flex items-center gap-3">
-        <div className="hidden sm:flex items-center gap-2 text-sm">
+        <Link
+          href="/profile"
+          className="hidden sm:flex items-center gap-2 text-sm hover:opacity-80 transition-opacity"
+          title={t("nav.profile")}
+        >
           <div className="h-7 w-7 rounded-full bg-secondary grid place-items-center">
             <UserIcon className="h-4 w-4" />
           </div>
           <span className="text-muted-foreground">
             {user?.displayName ?? user?.email ?? t("topbar.user")}
           </span>
-        </div>
+        </Link>
 
         <LanguageSelector />
 

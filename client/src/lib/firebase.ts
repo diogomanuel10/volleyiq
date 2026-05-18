@@ -3,11 +3,14 @@ import {
   getAuth,
   onAuthStateChanged,
   GoogleAuthProvider,
+  EmailAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithRedirect,
   getRedirectResult,
   signOut,
+  reauthenticateWithCredential,
+  updatePassword,
   type User,
 } from "firebase/auth";
 
@@ -139,4 +142,19 @@ export async function getIdToken(): Promise<string | null> {
   if (USE_DEV) return "dev-token";
   const user = getAuth().currentUser;
   return user ? user.getIdToken() : null;
+}
+
+export function isEmailUser(): boolean {
+  if (USE_DEV) return true;
+  const user = getAuth().currentUser;
+  if (!user) return false;
+  return user.providerData.some((p) => p.providerId === "password");
+}
+
+export async function changePassword(currentPassword: string, newPassword: string) {
+  const user = getAuth().currentUser;
+  if (!user || !user.email) throw new Error("no_user");
+  const credential = EmailAuthProvider.credential(user.email, currentPassword);
+  await reauthenticateWithCredential(user, credential);
+  await updatePassword(user, newPassword);
 }

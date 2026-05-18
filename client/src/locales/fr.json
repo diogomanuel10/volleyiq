@@ -34,7 +34,8 @@
     "more": "Plus",
     "athletes": "Athlètes",
     "livescout": "Live Scout",
-    "reports": "Rapport"
+    "reports": "Rapport",
+    "profile": "Profil"
   },
   "topbar": {
     "welcome": "Bon retour — lisons le jeu.",
@@ -942,6 +943,24 @@
       "importing": "Importation…",
       "imported": "Match importé avec succès !",
       "importError": "Échec de l'importation du fichier .dvw"
+    }
+  },
+  "profile": {
+    "title": "Profil",
+    "account": "Compte",
+    "changePassword": "Changer le mot de passe",
+    "currentPassword": "Mot de passe actuel",
+    "newPassword": "Nouveau mot de passe",
+    "confirmPassword": "Confirmer le nouveau mot de passe",
+    "savePassword": "Enregistrer le mot de passe",
+    "success": "Mot de passe modifié avec succès.",
+    "googleAccount": "Votre compte utilise Google pour l'authentification — il n'y a pas de mot de passe à modifier ici.",
+    "errors": {
+      "mismatch": "Les nouveaux mots de passe ne correspondent pas.",
+      "tooShort": "Le mot de passe doit comporter au moins 6 caractères.",
+      "wrongCurrent": "Le mot de passe actuel est incorrect.",
+      "tooMany": "Trop de tentatives. Attendez quelques minutes.",
+      "generic": "Impossible de changer le mot de passe. Veuillez réessayer."
     }
   },
   "keyboardHelp": {

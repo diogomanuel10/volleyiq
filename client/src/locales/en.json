@@ -34,7 +34,8 @@
     "more": "More",
     "athletes": "Athletes",
     "livescout": "Live Scout",
-    "reports": "Report"
+    "reports": "Report",
+    "profile": "Profile"
   },
   "topbar": {
     "welcome": "Welcome back — let's read the game.",
@@ -942,6 +943,24 @@
       "importing": "Importing…",
       "imported": "Match imported successfully!",
       "importError": "Failed to import .dvw file"
+    }
+  },
+  "profile": {
+    "title": "Profile",
+    "account": "Account",
+    "changePassword": "Change password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "savePassword": "Save password",
+    "success": "Password changed successfully.",
+    "googleAccount": "Your account uses Google for authentication — there is no password to change here.",
+    "errors": {
+      "mismatch": "New passwords do not match.",
+      "tooShort": "Password must be at least 6 characters.",
+      "wrongCurrent": "Current password is incorrect.",
+      "tooMany": "Too many attempts. Please wait a few minutes.",
+      "generic": "Could not change password. Please try again."
     }
   },
   "keyboardHelp": {

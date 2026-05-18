@@ -34,7 +34,8 @@
     "more": "Más",
     "athletes": "Atletas",
     "livescout": "Live Scout",
-    "reports": "Informe"
+    "reports": "Informe",
+    "profile": "Perfil"
   },
   "topbar": {
     "welcome": "Bienvenida de nuevo — leamos el juego.",
@@ -942,6 +943,24 @@
       "importing": "Importando…",
       "imported": "¡Partido importado correctamente!",
       "importError": "Error al importar archivo .dvw"
+    }
+  },
+  "profile": {
+    "title": "Perfil",
+    "account": "Cuenta",
+    "changePassword": "Cambiar contraseña",
+    "currentPassword": "Contraseña actual",
+    "newPassword": "Nueva contraseña",
+    "confirmPassword": "Confirmar nueva contraseña",
+    "savePassword": "Guardar contraseña",
+    "success": "Contraseña cambiada con éxito.",
+    "googleAccount": "Tu cuenta usa Google para la autenticación — no hay contraseña que cambiar aquí.",
+    "errors": {
+      "mismatch": "Las nuevas contraseñas no coinciden.",
+      "tooShort": "La contraseña debe tener al menos 6 caracteres.",
+      "wrongCurrent": "La contraseña actual es incorrecta.",
+      "tooMany": "Demasiados intentos. Espera unos minutos.",
+      "generic": "No se pudo cambiar la contraseña. Inténtalo de nuevo."
     }
   },
   "keyboardHelp": {

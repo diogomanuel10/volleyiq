@@ -19,6 +19,7 @@ import Onboarding from "@/pages/Onboarding";
 import Opponents from "@/pages/Opponents";
 import OpponentDetail from "@/pages/OpponentDetail";
 import TeamSettings from "@/pages/TeamSettings";
+import Profile from "@/pages/Profile";
 
 export default function App() {
   const { isAuthed, isLoading: authLoading } = useAuth();
@@ -67,6 +68,7 @@ function AuthedApp() {
           <Route path="/second-screen/:matchId" component={SecondScreen} />
           <Route path="/pricing" component={Pricing} />
           <Route path="/settings" component={TeamSettings} />
+          <Route path="/profile" component={Profile} />
           <Route>
             <div className="p-8 text-muted-foreground">Página não encontrada.</div>
           </Route>
