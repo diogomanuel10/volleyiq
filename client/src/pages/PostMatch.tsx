@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -23,6 +23,10 @@ import {
   Tag,
   X,
   Loader2,
+  SkipBack,
+  SkipForward,
+  StopCircle,
+  Play,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -248,6 +252,12 @@ function Summary({
   const [filterAction, setFilterAction] = useState<string | null>(null);
   const [filterPlayer, setFilterPlayer] = useState<string | null>(null);
 
+  // Clip playlist state
+  const [playlistActive, setPlaylistActive] = useState(false);
+  const [playlistIdx, setPlaylistIdx] = useState(0);
+  const [clipDuration, setClipDuration] = useState(5);
+  const clipSeekTargetRef = useRef<number | null>(null);
+
   // Manual video tagger state
   const [taggingAt, setTaggingAt] = useState<number | null>(null);
   const [tagAction, setTagAction] = useState<ActionType | "">("");
@@ -313,6 +323,65 @@ function Summary({
 
   const s = summaryQuery.data;
   const win = s.setsWon > s.setsLost;
+
+  const filteredMoments = useMemo(
+    () =>
+      s.taggedMoments.filter((m) => {
+        if (filterAction && m.type !== filterAction) return false;
+        if (filterPlayer && m.playerName !== filterPlayer) return false;
+        return true;
+      }),
+    [s.taggedMoments, filterAction, filterPlayer],
+  );
+
+  const resultBreakdown = useMemo(
+    () =>
+      filteredMoments.reduce(
+        (acc, m) => ({ ...acc, [m.result]: (acc[m.result] ?? 0) + 1 }),
+        {} as Record<string, number>,
+      ),
+    [filteredMoments],
+  );
+
+  const startPlaylist = useCallback(
+    (idx = 0, moments = filteredMoments) => {
+      if (!moments.length) return;
+      const clip = moments[idx];
+      setPlaylistActive(true);
+      setPlaylistIdx(idx);
+      clipSeekTargetRef.current = clip.videoTimeSec;
+      videoRef.current?.seekTo(clip.videoTimeSec);
+    },
+    [filteredMoments],
+  );
+
+  const stopPlaylist = useCallback(() => {
+    setPlaylistActive(false);
+    clipSeekTargetRef.current = null;
+  }, []);
+
+  // Auto-advance: poll getCurrentTime every 500 ms while playlist is active
+  useEffect(() => {
+    if (!playlistActive) return;
+    const iv = setInterval(() => {
+      const cur = videoRef.current?.getCurrentTime();
+      const target = clipSeekTargetRef.current;
+      if (cur == null || target == null) return;
+      if (cur >= target + clipDuration) {
+        const next = playlistIdx + 1;
+        if (next >= filteredMoments.length) {
+          stopPlaylist();
+        } else {
+          const clip = filteredMoments[next];
+          setPlaylistIdx(next);
+          clipSeekTargetRef.current = clip.videoTimeSec;
+          videoRef.current?.seekTo(clip.videoTimeSec);
+        }
+      }
+    }, 500);
+    return () => clearInterval(iv);
+  }, [playlistActive, playlistIdx, clipDuration, filteredMoments, stopPlaylist]);
+
   const kpis = [
     { label: "Kill %", value: formatPct(s.teamKpis.killPct), icon: Target },
     { label: "Side-Out %", value: formatPct(s.teamKpis.sideOutPct), icon: Shield },
@@ -713,109 +782,200 @@ function Summary({
               </div>
             )}
 
-            {/* Filters */}
+            {/* Filters + playlist launch */}
             {s.taggedMoments.length > 0 && (
-              <div className="flex flex-wrap gap-2 items-center">
-                <span className="text-xs text-muted-foreground">Filtrar:</span>
-                {/* Action filter chips */}
-                {Array.from(new Set(s.taggedMoments.map((m) => m.type))).map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => setFilterAction(filterAction === type ? null : type)}
-                    className={cn(
-                      "rounded-full border px-2.5 py-0.5 text-xs transition-colors",
-                      filterAction === type
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "hover:bg-accent",
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-2 items-center">
+                  <span className="text-xs text-muted-foreground">Filtrar:</span>
+                  {Array.from(new Set(s.taggedMoments.map((m) => m.type))).map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => {
+                        setFilterAction(filterAction === type ? null : type);
+                        stopPlaylist();
+                      }}
+                      className={cn(
+                        "rounded-full border px-2.5 py-0.5 text-xs transition-colors",
+                        filterAction === type
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "hover:bg-accent",
+                      )}
+                    >
+                      {ACTION_SHORT[type] ?? type}
+                    </button>
+                  ))}
+                  {s.taggedMoments.some((m) => m.playerName) && (
+                    <span className="text-muted-foreground text-xs">·</span>
+                  )}
+                  {Array.from(
+                    new Map(
+                      s.taggedMoments
+                        .filter((m) => m.playerName)
+                        .map((m) => [m.playerName, m.playerName]),
+                    ).values(),
+                  ).map((name) => (
+                    <button
+                      key={name}
+                      onClick={() => {
+                        setFilterPlayer(filterPlayer === name ? null : name);
+                        stopPlaylist();
+                      }}
+                      className={cn(
+                        "rounded-full border px-2.5 py-0.5 text-xs transition-colors",
+                        filterPlayer === name
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "hover:bg-accent",
+                      )}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                  {(filterAction || filterPlayer) && (
+                    <button
+                      onClick={() => {
+                        setFilterAction(null);
+                        setFilterPlayer(null);
+                        stopPlaylist();
+                      }}
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3 w-3" /> Limpar
+                    </button>
+                  )}
+                </div>
+
+                {/* Playlist bar — only when there are filtered results */}
+                {filteredMoments.length > 0 && (
+                  <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
+                    {/* Result breakdown */}
+                    <div className="flex flex-wrap gap-1.5 items-center">
+                      <span className="text-xs text-muted-foreground">{filteredMoments.length} momentos ·</span>
+                      {Object.entries(resultBreakdown).map(([r, n]) => (
+                        <Badge key={r} variant="outline" className="text-[10px]">
+                          {RESULT_SHORT[r] ?? r} {n}
+                        </Badge>
+                      ))}
+                    </div>
+
+                    {playlistActive ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => startPlaylist(Math.max(0, playlistIdx - 1))}
+                          disabled={playlistIdx === 0}
+                          className="p-1 rounded hover:bg-accent disabled:opacity-30"
+                        >
+                          <SkipBack className="h-4 w-4" />
+                        </button>
+                        <div className="flex-1 text-center">
+                          <span className="text-xs font-mono text-muted-foreground">
+                            {playlistIdx + 1}/{filteredMoments.length}
+                          </span>
+                          <div className="text-sm font-medium truncate">
+                            {filteredMoments[playlistIdx]?.playerNumber != null && (
+                              <span className="font-bold">
+                                #{filteredMoments[playlistIdx].playerNumber}{" "}
+                              </span>
+                            )}
+                            {filteredMoments[playlistIdx]?.playerName ?? "—"}
+                            {" · "}
+                            {ACTION_SHORT[filteredMoments[playlistIdx]?.type] ?? ""}
+                            {" · "}
+                            {RESULT_SHORT[filteredMoments[playlistIdx]?.result] ?? ""}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground font-mono">
+                            {fmtTime(filteredMoments[playlistIdx]?.videoTimeSec ?? 0)}
+                            {" · "}
+                            <select
+                              value={clipDuration}
+                              onChange={(e) => setClipDuration(Number(e.target.value))}
+                              className="bg-transparent border-0 text-[10px] cursor-pointer"
+                            >
+                              {[3, 5, 8, 10, 15].map((d) => (
+                                <option key={d} value={d}>{d}s / clip</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() =>
+                            playlistIdx + 1 < filteredMoments.length
+                              ? startPlaylist(playlistIdx + 1)
+                              : stopPlaylist()
+                          }
+                          disabled={playlistIdx + 1 >= filteredMoments.length}
+                          className="p-1 rounded hover:bg-accent disabled:opacity-30"
+                        >
+                          <SkipForward className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={stopPlaylist}
+                          className="p-1 rounded hover:bg-accent text-red-500"
+                        >
+                          <StopCircle className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="w-full gap-2"
+                        onClick={() => startPlaylist(0)}
+                      >
+                        <Play className="h-3.5 w-3.5" />
+                        Ver como playlist
+                        <span className="text-xs opacity-70">({filteredMoments.length} clips)</span>
+                      </Button>
                     )}
-                  >
-                    {ACTION_SHORT[type] ?? type}
-                  </button>
-                ))}
-                {/* Divider */}
-                {s.taggedMoments.some((m) => m.playerName) && (
-                  <span className="text-muted-foreground text-xs">·</span>
-                )}
-                {/* Player filter chips */}
-                {Array.from(
-                  new Map(
-                    s.taggedMoments
-                      .filter((m) => m.playerName)
-                      .map((m) => [m.playerName, m.playerName])
-                  ).values()
-                ).map((name) => (
-                  <button
-                    key={name}
-                    onClick={() => setFilterPlayer(filterPlayer === name ? null : name)}
-                    className={cn(
-                      "rounded-full border px-2.5 py-0.5 text-xs transition-colors",
-                      filterPlayer === name
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "hover:bg-accent",
-                    )}
-                  >
-                    {name}
-                  </button>
-                ))}
-                {/* Clear filters */}
-                {(filterAction || filterPlayer) && (
-                  <button
-                    onClick={() => { setFilterAction(null); setFilterPlayer(null); }}
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-3 w-3" /> Limpar
-                  </button>
+                  </div>
                 )}
               </div>
             )}
 
             {/* Moments grid */}
-            {(() => {
-              const filtered = s.taggedMoments.filter((m) => {
-                if (filterAction && m.type !== filterAction) return false;
-                if (filterPlayer && m.playerName !== filterPlayer) return false;
-                return true;
-              });
-              if (s.taggedMoments.length === 0)
-                return (
-                  <p className="text-sm text-muted-foreground">
-                    {t("postMatch.noTaggedMoments")}
-                  </p>
-                );
-              if (filtered.length === 0)
-                return (
-                  <p className="text-sm text-muted-foreground">
-                    Nenhum momento para os filtros seleccionados.
-                  </p>
-                );
-              return (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {filtered.map((m) => (
-                    <button
-                      key={m.actionId}
-                      onClick={() => videoRef.current?.seekTo(m.videoTimeSec)}
-                      className="text-left rounded-md border bg-card p-2 hover:bg-accent transition-colors flex items-center gap-2"
-                    >
-                      <PlayCircle className="h-4 w-4 text-primary shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-xs text-muted-foreground font-mono">
-                          {fmtTime(m.videoTimeSec)}
-                        </div>
-                        <div className="text-sm truncate">
-                          {m.playerNumber != null && (
-                            <span className="font-semibold">#{m.playerNumber} </span>
-                          )}
-                          {m.playerName ?? "—"}
-                        </div>
+            {s.taggedMoments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {t("postMatch.noTaggedMoments")}
+              </p>
+            ) : filteredMoments.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhum momento para os filtros seleccionados.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                {filteredMoments.map((m, i) => (
+                  <button
+                    key={m.actionId}
+                    onClick={() => {
+                      stopPlaylist();
+                      videoRef.current?.seekTo(m.videoTimeSec);
+                    }}
+                    className={cn(
+                      "text-left rounded-md border bg-card p-2 hover:bg-accent transition-colors flex items-center gap-2",
+                      playlistActive && playlistIdx === i && "border-primary bg-primary/5",
+                    )}
+                  >
+                    <PlayCircle className={cn(
+                      "h-4 w-4 shrink-0",
+                      playlistActive && playlistIdx === i ? "text-primary" : "text-muted-foreground",
+                    )} />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs text-muted-foreground font-mono">
+                        {fmtTime(m.videoTimeSec)}
                       </div>
-                      <Badge variant="outline" className="text-[10px] shrink-0">
-                        {ACTION_SHORT[m.type] ?? m.type} · {RESULT_SHORT[m.result] ?? m.result}
-                      </Badge>
-                    </button>
-                  ))}
-                </div>
-              );
-            })()}
+                      <div className="text-sm truncate">
+                        {m.playerNumber != null && (
+                          <span className="font-semibold">#{m.playerNumber} </span>
+                        )}
+                        {m.playerName ?? "—"}
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] shrink-0">
+                      {ACTION_SHORT[m.type] ?? m.type} · {RESULT_SHORT[m.result] ?? m.result}
+                    </Badge>
+                  </button>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
