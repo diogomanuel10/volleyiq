@@ -11,6 +11,7 @@ import {
   Shuffle,
   Sparkles,
   Settings,
+  UserCircle,
   Menu,
   X,
 } from "lucide-react";
@@ -38,6 +39,7 @@ const allNavKeys = [
   { href: "/post-match", icon: CalendarDays, key: "postMatch" },
   { href: "/pricing", icon: Sparkles, key: "pricing" },
   { href: "/settings", icon: Settings, key: "settings" },
+  { href: "/profile", icon: UserCircle, key: "profile" },
 ];
 
 export function MobileNav() {
