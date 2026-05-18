@@ -115,17 +115,41 @@ router.get("/teams/:id/members", async (req, res) => {
   res.json(members);
 });
 
+// ── Trial / subscription helpers ─────────────────────────────────────────────
+
+export function isTeamAccessible(team: { trialEndsAt: Date | null; subscribedAt: Date | null }): boolean {
+  if (team.subscribedAt) return true;
+  if (team.trialEndsAt && team.trialEndsAt > new Date()) return true;
+  return false;
+}
+
+/** Middleware que bloqueia acesso se o trial expirou e não há subscrição activa. */
+async function requireActiveSubscription(req: any, res: any, next: any) {
+  const teamId = req.teamId as string | undefined;
+  if (!teamId) return next(); // sem teamId, deixar outros middlewares tratar
+  const team = await storage.getTeamById(teamId);
+  if (!team) return next();
+  if (!isTeamAccessible(team)) {
+    return res.status(402).json({
+      error: "trial_expired",
+      trialEndsAt: team.trialEndsAt,
+    });
+  }
+  next();
+}
+
 // Middleware para garantir que o utilizador pertence à equipa pedida.
-// Popula req.teamId e req.teamPlan.
+// Popula req.teamId e req.teamPlan. Verifica trial/subscrição activa.
 async function requireTeamAccess(req: any, res: any, next: any) {
   const teamId = (req.query.teamId ?? req.params.teamId) as string | undefined;
   if (!teamId) return res.status(400).json({ error: "teamId required" });
   const ok = await storage.userBelongsToTeam(req.user.uid, teamId);
   if (!ok) return res.status(403).json({ error: "forbidden" });
   req.teamId = teamId;
-  if (!req.teamPlan) {
-    const team = await storage.getTeamById(teamId);
-    req.teamPlan = (team?.plan ?? "individual") as Plan;
+  const team = await storage.getTeamById(teamId);
+  req.teamPlan = (team?.plan ?? "individual") as Plan;
+  if (team && !isTeamAccessible(team)) {
+    return res.status(402).json({ error: "trial_expired", trialEndsAt: team.trialEndsAt });
   }
   next();
 }

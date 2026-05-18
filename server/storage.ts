@@ -63,7 +63,8 @@ export async function listTeamsForUser(uid: string) {
 export async function createTeam(uid: string, data: InsertTeam) {
   const id = newId();
   const inviteCode = newInviteCode();
-  await db.insert(teams).values({ ...data, id, ownerUid: uid, inviteCode });
+  const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await db.insert(teams).values({ ...data, id, ownerUid: uid, inviteCode, trialEndsAt });
   await db.insert(memberships).values({
     id: newId(),
     teamId: id,
@@ -152,7 +153,11 @@ export async function updateTeamPlan(
   teamId: string,
   plan: "individual" | "basic" | "pro" | "club",
 ) {
-  await db.update(teams).set({ plan }).where(eq(teams.id, teamId));
+  // Activar subscrição ao mudar de plano (mock — será substituído por webhook EasyPay)
+  await db
+    .update(teams)
+    .set({ plan, subscribedAt: new Date() })
+    .where(eq(teams.id, teamId));
   const [row] = await db.select().from(teams).where(eq(teams.id, teamId));
   return row;
 }

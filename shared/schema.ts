@@ -40,6 +40,11 @@ export const teams = pgTable("teams", {
   ownerUid: text("owner_uid").notNull(),
   // Código de convite de 6 chars — partilhado pelo owner para adicionar membros.
   inviteCode: text("invite_code"),
+  // Trial de 7 dias a partir da criação. Null = sem trial (equipas antigas).
+  trialEndsAt: timestamp("trial_ends_at"),
+  // Data em que a subscrição foi activada (pagamento confirmado).
+  // Null = ainda em trial ou trial expirado sem pagamento.
+  subscribedAt: timestamp("subscribed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
