@@ -104,6 +104,28 @@ export async function cancelSubscription(teamId: string) {
     .where(eq(teams.id, teamId));
 }
 
+export async function trackPdfExport(teamId: string): Promise<{ allowed: boolean; used: number; limit: number }> {
+  const PDF_LIMIT = 3;
+  const currentMonth = new Date().toISOString().slice(0, 7); // "YYYY-MM"
+
+  const team = await getTeamById(teamId);
+  if (!team) return { allowed: false, used: 0, limit: PDF_LIMIT };
+
+  // Reset counter if new month
+  const count = team.pdfExportsMonth === currentMonth ? team.pdfExportsCount : 0;
+
+  if (count >= PDF_LIMIT) {
+    return { allowed: false, used: count, limit: PDF_LIMIT };
+  }
+
+  await db
+    .update(teams)
+    .set({ pdfExportsCount: count + 1, pdfExportsMonth: currentMonth })
+    .where(eq(teams.id, teamId));
+
+  return { allowed: true, used: count + 1, limit: PDF_LIMIT };
+}
+
 export async function getTeamByInviteCode(code: string) {
   const [row] = await db
     .select()

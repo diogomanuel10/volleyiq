@@ -806,6 +806,25 @@ router.delete("/substitutions/:id", requireSubstitutionAccess, async (req, res) 
 
 // ── EasyPay Payments ──────────────────────────────────────────────────────────
 
+// ── PDF export tracking ───────────────────────────────────────────────────────
+
+router.post("/teams/:id/pdf-export", async (req, res) => {
+  const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+
+  const team = await storage.getTeamById(req.params.id);
+  if (!team) return res.status(404).json({ error: "not found" });
+
+  // Pro+ and trial users have unlimited PDFs
+  const onTrial = team.trialEndsAt && team.trialEndsAt > new Date() && !team.subscribedAt;
+  if (onTrial || planMeetsMinimum((team.plan as Plan) ?? "individual", "pro")) {
+    return res.json({ allowed: true, used: null, limit: null });
+  }
+
+  const result = await storage.trackPdfExport(req.params.id);
+  res.json(result);
+});
+
 const checkoutSchema = z.object({
   teamId: z.string(),
   plan: z.enum(["individual", "pro", "club"]),

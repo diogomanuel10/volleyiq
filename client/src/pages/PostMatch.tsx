@@ -14,6 +14,7 @@ import {
   Sparkles,
   ChevronRight,
   Printer,
+  Download,
   Video,
   PlayCircle,
   ClipboardList,
@@ -21,7 +22,9 @@ import {
   CalendarPlus,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import { useTeam } from "@/hooks/useTeam";
+import { usePlanGuard } from "@/hooks/usePlanGuard";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +32,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate, formatPct, cn } from "@/lib/utils";
+import { PlanGate } from "@/components/PlanGate";
 import { VideoPanel, type VideoPanelHandle } from "@/components/scout/VideoPanel";
 import {
   HeatmapCourt,
@@ -227,6 +231,7 @@ function Summary({
   onBack: () => void;
 }) {
   const { t } = useTranslation();
+  const guard = usePlanGuard();
   const videoRef = useRef<VideoPanelHandle>(null);
   const summaryQuery = useQuery({
     queryKey: ["summary", matchId],
@@ -282,6 +287,66 @@ function Summary({
     { label: "Attack Eff.", value: s.teamKpis.attackEfficiency.toFixed(3), icon: Sparkles },
   ];
 
+  async function handlePrint() {
+    // Pro+ e trial têm PDFs ilimitados
+    if (guard.meetsMinimum("pro")) {
+      window.print();
+      return;
+    }
+    const result = await api.post<{ allowed: boolean; used: number; limit: number }>(
+      `/api/teams/${teamId}/pdf-export`, {}
+    );
+    if (!result.allowed) {
+      toast.error(`Limite de ${result.limit} PDFs/mês atingido. Faz upgrade para Pro para PDFs ilimitados.`);
+      return;
+    }
+    toast.info(`PDF ${result.used}/${result.limit} este mês`);
+    window.print();
+  }
+
+  function exportCsv() {
+    const headers = ["#", "Nome", "Pos", "Kills", "Erros", "Tentativas", "Kill%", "Eff", "Aces", "Blocks", "Digs", "Rec", "Pass", "Rating"];
+    const rows = s.players.map((p) => [
+      p.number,
+      `${p.firstName} ${p.lastName}`,
+      p.position,
+      p.kills,
+      p.attackErrors,
+      p.attackAttempts,
+      `${p.killPct}%`,
+      `${p.attackEff}%`,
+      p.aces,
+      p.blocks,
+      p.digs,
+      p.receptions,
+      p.passRating.toFixed(2),
+      p.rating.toFixed(2),
+    ]);
+    const csvContent = [headers, ...rows]
+      .map((row) =>
+        row
+          .map((cell) => {
+            const str = String(cell);
+            return str.includes(",") || str.includes('"') || str.includes("\n")
+              ? `"${str.replace(/"/g, '""')}"`
+              : str;
+          })
+          .join(","),
+      )
+      .join("\n");
+    const slug = s.opponent.replace(/\s+/g, "-").toLowerCase();
+    const fileName = `post-match-${slug}-${matchId}.csv`;
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-5">
       <Button variant="ghost" size="sm" onClick={onBack} className="print-hide">
@@ -305,11 +370,17 @@ function Summary({
           <Button
             size="sm"
             variant="outline"
-            onClick={() => window.print()}
+            onClick={handlePrint}
             className="print-hide"
           >
             <Printer className="h-4 w-4" /> {t("postMatch.print")}
           </Button>
+          <PlanGate minimumPlan="pro">
+            <Button variant="outline" size="sm" className="gap-1.5 print-hide" onClick={exportCsv}>
+              <Download className="h-4 w-4" />
+              CSV
+            </Button>
+          </PlanGate>
         </div>
       </header>
 

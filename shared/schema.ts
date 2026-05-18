@@ -42,6 +42,8 @@ export const teams = pgTable("teams", {
   trialEndsAt: timestamp("trial_ends_at"),
   subscribedAt: timestamp("subscribed_at"),
   easyPaySubscriptionId: text("easypay_subscription_id"),
+  pdfExportsCount: integer("pdf_exports_count").notNull().default(0),
+  pdfExportsMonth: text("pdf_exports_month").default(""),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
