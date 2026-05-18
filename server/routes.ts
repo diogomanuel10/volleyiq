@@ -26,6 +26,7 @@ import {
 import type { PatternDetectionInput } from "@shared/types";
 import { PLAN_FEATURES, planMeetsMinimum } from "@shared/planFeatures";
 import type { Plan } from "@shared/types";
+import * as easypay from "./easypay";
 
 export const router = Router();
 
@@ -799,6 +800,91 @@ router.post("/matches/:matchId/substitutions", requireMatchAccess, async (req, r
 router.delete("/substitutions/:id", requireSubstitutionAccess, async (req, res) => {
   await storage.deleteSubstitution(req.params.id);
   res.status(204).end();
+});
+
+// ── EasyPay Payments ──────────────────────────────────────────────────────────
+
+const checkoutSchema = z.object({
+  teamId: z.string(),
+  plan: z.enum(["individual", "pro", "club"]),
+  period: z.enum(["monthly", "annual"]).default("monthly"),
+  method: z.enum(["mb_way", "multibanco", "cc"]).default("multibanco"),
+  customerName: z.string().min(1),
+  customerEmail: z.string().email(),
+  customerPhone: z.string().optional(),
+});
+
+router.post("/payments/checkout", async (req, res) => {
+  const parsed = checkoutSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json(parsed.error.flatten());
+
+  const { teamId, plan, period, method, customerName, customerEmail, customerPhone } = parsed.data;
+  const ok = await storage.userBelongsToTeam(req.user!.uid, teamId);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+
+  // In sandbox/dev mode, skip real API call and mock a payment
+  if (!easypay.isConfigured() || process.env.EASYPAY_SANDBOX === "true") {
+    // Mock: activate immediately for dev/sandbox testing
+    if (process.env.NODE_ENV !== "production" || process.env.EASYPAY_SANDBOX === "true") {
+      const team = await storage.activateSubscription(teamId, plan);
+      return res.json({
+        mock: true,
+        team,
+        message: "Sandbox: subscrição activada de imediato.",
+      });
+    }
+    return res.status(503).json({ error: "payment_not_configured" });
+  }
+
+  const prices = easypay.PLAN_PRICES[plan];
+  const value = period === "annual" ? prices.annual * 12 : prices.monthly;
+  const externalId = `${teamId}:${plan}:${period}`;
+  const notifyUrl = `${process.env.APP_URL ?? ""}/api/payments/webhook`;
+
+  try {
+    const payment = await easypay.createSinglePayment({
+      value,
+      description: `VolleyIQ ${plan} — ${period === "annual" ? "anual" : "mensal"}`,
+      customerName,
+      customerEmail,
+      customerPhone,
+      method,
+      notifyUrl,
+      externalId,
+    });
+    res.json(payment);
+  } catch (err: any) {
+    console.error("EasyPay checkout error:", err.message);
+    res.status(502).json({ error: "payment_gateway_error", detail: err.message });
+  }
+});
+
+// Webhook called by EasyPay after payment is processed (no auth required)
+router.post("/payments/webhook", async (req, res) => {
+  const payload = easypay.parseWebhook(req.body);
+  if (!payload) return res.status(400).json({ error: "invalid_payload" });
+
+  // Acknowledge immediately — EasyPay expects 2xx quickly
+  res.status(200).json({ received: true });
+
+  if (payload.status !== "success") {
+    console.log(`EasyPay webhook: non-success status ${payload.status} for ${payload.key}`);
+    return;
+  }
+
+  // key format: "teamId:plan:period"
+  const [teamId, plan] = payload.key.split(":");
+  if (!teamId || !plan) {
+    console.error("EasyPay webhook: unparseable key", payload.key);
+    return;
+  }
+
+  try {
+    await storage.activateSubscription(teamId, plan as any, payload.id);
+    console.log(`EasyPay: activated ${plan} for team ${teamId} (payment ${payload.id})`);
+  } catch (err) {
+    console.error("EasyPay webhook: failed to activate subscription", err);
+  }
 });
 
 // ── User Preferences ──────────────────────────────────────────────────────────

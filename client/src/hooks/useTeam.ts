@@ -5,11 +5,6 @@ import type { Team } from "@shared/schema";
 
 const STORAGE_KEY = "volleyiq:teamId";
 
-/**
- * Gere o "team atual" do utilizador. Persiste a selecção em localStorage.
- * Se o utilizador ainda não tem equipa nenhuma, devolve `team: null` —
- * cabe ao caller encaminhar para o ecrã de onboarding.
- */
 export function useTeam() {
   const qc = useQueryClient();
 
