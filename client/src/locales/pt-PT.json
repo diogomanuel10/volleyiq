@@ -803,7 +803,7 @@
   },
   "pricing": {
     "title": "Escolhe o plano certo para a tua equipa",
-    "subtitle": "7 dias grátis com acesso completo. Actualiza quando precisares de analytics avançado, IA ou gestão de clube.",
+    "subtitle": "7 dias grátis com acesso completo. Sem cartão de crédito.",
     "simplePricing": "Preços simples",
     "currentTeam": "Equipa actual:",
     "currentPlan": "Plano actual",
@@ -813,18 +813,24 @@
     "changing": "A mudar…",
     "upgradeTo": "Fazer upgrade para {{plan}}",
     "switchTo": "Mudar para {{plan}}",
-    "billingNote": "Billing mockado: mudar de plano altera o registo da equipa e desbloqueia features no cliente.",
     "plans": {
+      "individual": {
+        "name": "Individual",
+        "price": "€19",
+        "period": "/mês",
+        "blurb": "Para treinadores individuais"
+      },
       "basic": {
-        "name": "Basic",
-        "price": "7 dias grátis",
-        "blurb": "Trial com acesso completo"
+        "name": "Individual",
+        "price": "€19",
+        "period": "/mês",
+        "blurb": "Para treinadores individuais"
       },
       "pro": {
         "name": "Pro",
-        "price": "€39",
+        "price": "€49",
         "period": "/mês",
-        "blurb": "Para treinadores e clubes pequenos"
+        "blurb": "Para treinadores com múltiplas equipas"
       },
       "club": {
         "name": "Club",
@@ -834,29 +840,41 @@
       }
     },
     "features": {
+      "individual": {
+        "teams": "1 equipa · 1 utilizador",
+        "liveScouting": "Live scouting completo",
+        "analytics": "Analytics básico",
+        "matchDay": "Match Day",
+        "matchLimit": "Até 20 jogos",
+        "pdfLimit": "3 relatórios PDF / mês"
+      },
       "basic": {
-        "teams": "1 equipa",
-        "liveScouting": "Live scouting",
-        "basicMetrics": "Métricas básicas",
-        "matchLimit": "Limite de 10 jogos"
+        "teams": "1 equipa · 1 utilizador",
+        "liveScouting": "Live scouting completo",
+        "analytics": "Analytics básico",
+        "matchDay": "Match Day",
+        "matchLimit": "Até 20 jogos",
+        "pdfLimit": "3 relatórios PDF / mês"
       },
       "pro": {
-        "teams": "5 equipas",
+        "teams": "5 equipas · 1 utilizador / equipa",
+        "opponents": "Scouting de adversários",
         "analytics": "Analytics completo",
-        "aiPatterns": "AI pattern detection",
-        "aiTraining": "AI training plans",
-        "pdfReports": "Relatórios PDF",
         "scenario": "Scenario modeling",
-        "videoTagging": "Tagging de vídeo"
+        "aiPatterns": "AI pattern detection",
+        "pdfReports": "Relatórios PDF ilimitados",
+        "exportCsv": "Export CSV"
       },
       "club": {
-        "teams": "Equipas ilimitadas",
+        "teams": "Equipas ilimitadas · 1 utilizador / equipa",
         "allPro": "Tudo do Pro",
-        "payments": "Gestão de quotas e presenças",
-        "api": "Acesso API",
+        "aiTraining": "AI training plans",
+        "aiLive": "Sugestões IA em tempo real",
+        "clubDashboard": "Dashboard de clube",
         "support": "Suporte prioritário"
       }
-    }
+    },
+    "addons": "Utilizadores adicionais: +€5 / utilizador / mês em todos os planos"
   },
   "setupGuide": {
     "title": "Primeiros passos",

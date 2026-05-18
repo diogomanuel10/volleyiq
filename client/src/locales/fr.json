@@ -802,61 +802,79 @@
     }
   },
   "pricing": {
-    "title": "Choisissez le bon plan pour votre équipe",
-    "subtitle": "Commencez gratuitement. Passez à la version supérieure quand vous avez besoin d'analyses avancées, d'IA ou de gestion de club.",
-    "simplePricing": "Tarification simple",
-    "currentTeam": "Équipe actuelle :",
-    "currentPlan": "Plan actuel",
-    "mostPopular": "Le plus populaire",
-    "planChanged": "Plan changé en {{plan}}",
-    "planChangeError": "Échec du changement de plan",
-    "changing": "Changement…",
-    "upgradeTo": "Passer à {{plan}}",
-    "switchTo": "Changer vers {{plan}}",
-    "billingNote": "Facturation simulée : changer de plan met à jour l'enregistrement de l'équipe et déverrouille les fonctionnalités côté client.",
+    "title": "Escolhe o plano certo para a tua equipa",
+    "subtitle": "7 dias grátis com acesso completo. Sem cartão de crédito.",
+    "simplePricing": "Preços simples",
+    "currentTeam": "Equipa actual:",
+    "currentPlan": "Plano actual",
+    "mostPopular": "Mais popular",
+    "planChanged": "Plano alterado para {{plan}}",
+    "planChangeError": "Falha ao alterar plano",
+    "changing": "A mudar…",
+    "upgradeTo": "Fazer upgrade para {{plan}}",
+    "switchTo": "Mudar para {{plan}}",
     "plans": {
+      "individual": {
+        "name": "Individual",
+        "price": "€19",
+        "period": "/mês",
+        "blurb": "Para treinadores individuais"
+      },
       "basic": {
-        "name": "Basic",
-        "price": "7 dias grátis",
-        "blurb": "Pour essayer le produit"
+        "name": "Individual",
+        "price": "€19",
+        "period": "/mês",
+        "blurb": "Para treinadores individuais"
       },
       "pro": {
         "name": "Pro",
-        "price": "€39",
-        "period": "/mois",
-        "blurb": "Pour les entraîneurs et les petits clubs"
+        "price": "€49",
+        "period": "/mês",
+        "blurb": "Para treinadores com múltiplas equipas"
       },
       "club": {
         "name": "Club",
         "price": "€119",
-        "period": "/mois",
-        "blurb": "Pour les clubs avec plusieurs équipes"
+        "period": "/mês",
+        "blurb": "Para clubes com múltiplas equipas"
       }
     },
     "features": {
+      "individual": {
+        "teams": "1 equipa · 1 utilizador",
+        "liveScouting": "Live scouting completo",
+        "analytics": "Analytics básico",
+        "matchDay": "Match Day",
+        "matchLimit": "Até 20 jogos",
+        "pdfLimit": "3 relatórios PDF / mês"
+      },
       "basic": {
-        "teams": "1 équipe",
-        "liveScouting": "Scouting en direct",
-        "basicMetrics": "Métriques de base",
-        "matchLimit": "Limite de 10 matchs"
+        "teams": "1 equipa · 1 utilizador",
+        "liveScouting": "Live scouting completo",
+        "analytics": "Analytics básico",
+        "matchDay": "Match Day",
+        "matchLimit": "Até 20 jogos",
+        "pdfLimit": "3 relatórios PDF / mês"
       },
       "pro": {
-        "teams": "5 équipes",
-        "analytics": "Analytics complet",
-        "aiPatterns": "Détection de patterns IA",
-        "aiTraining": "Plans d'entraînement IA",
-        "pdfReports": "Rapports PDF",
-        "scenario": "Modélisation de scénarios",
-        "videoTagging": "Étiquetage vidéo"
+        "teams": "5 equipas · 1 utilizador / equipa",
+        "opponents": "Scouting de adversários",
+        "analytics": "Analytics completo",
+        "scenario": "Scenario modeling",
+        "aiPatterns": "AI pattern detection",
+        "pdfReports": "Relatórios PDF ilimitados",
+        "exportCsv": "Export CSV"
       },
       "club": {
-        "teams": "Équipes illimitées",
-        "allPro": "Tout du Pro",
-        "payments": "Gestion des cotisations et présences",
-        "api": "Accès API",
-        "support": "Support prioritaire"
+        "teams": "Equipas ilimitadas · 1 utilizador / equipa",
+        "allPro": "Tudo do Pro",
+        "aiTraining": "AI training plans",
+        "aiLive": "Sugestões IA em tempo real",
+        "clubDashboard": "Dashboard de clube",
+        "support": "Suporte prioritário"
       }
-    }
+    },
+    "addons": "Utilizadores adicionais: +€5 / utilizador / mês em todos os planos"
   },
   "setupGuide": {
     "title": "Premiers pas",

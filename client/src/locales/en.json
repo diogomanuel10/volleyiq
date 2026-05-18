@@ -802,61 +802,79 @@
     }
   },
   "pricing": {
-    "title": "Choose the right plan for your team",
-    "subtitle": "Start free. Upgrade when you need advanced analytics, AI or club management.",
-    "simplePricing": "Simple pricing",
-    "currentTeam": "Current team:",
-    "currentPlan": "Current plan",
-    "mostPopular": "Most popular",
-    "planChanged": "Plan changed to {{plan}}",
-    "planChangeError": "Failed to change plan",
-    "changing": "Changing…",
-    "upgradeTo": "Upgrade to {{plan}}",
-    "switchTo": "Switch to {{plan}}",
-    "billingNote": "Billing mocked: changing plan updates the team record and unlocks features in the client.",
+    "title": "Escolhe o plano certo para a tua equipa",
+    "subtitle": "7 dias grátis com acesso completo. Sem cartão de crédito.",
+    "simplePricing": "Preços simples",
+    "currentTeam": "Equipa actual:",
+    "currentPlan": "Plano actual",
+    "mostPopular": "Mais popular",
+    "planChanged": "Plano alterado para {{plan}}",
+    "planChangeError": "Falha ao alterar plano",
+    "changing": "A mudar…",
+    "upgradeTo": "Fazer upgrade para {{plan}}",
+    "switchTo": "Mudar para {{plan}}",
     "plans": {
+      "individual": {
+        "name": "Individual",
+        "price": "€19",
+        "period": "/mês",
+        "blurb": "Para treinadores individuais"
+      },
       "basic": {
-        "name": "Basic",
-        "price": "7 dias grátis",
-        "blurb": "Try the product"
+        "name": "Individual",
+        "price": "€19",
+        "period": "/mês",
+        "blurb": "Para treinadores individuais"
       },
       "pro": {
         "name": "Pro",
-        "price": "€39",
-        "period": "/mo",
-        "blurb": "For coaches and small clubs"
+        "price": "€49",
+        "period": "/mês",
+        "blurb": "Para treinadores com múltiplas equipas"
       },
       "club": {
         "name": "Club",
         "price": "€119",
-        "period": "/mo",
-        "blurb": "For clubs with multiple teams"
+        "period": "/mês",
+        "blurb": "Para clubes com múltiplas equipas"
       }
     },
     "features": {
+      "individual": {
+        "teams": "1 equipa · 1 utilizador",
+        "liveScouting": "Live scouting completo",
+        "analytics": "Analytics básico",
+        "matchDay": "Match Day",
+        "matchLimit": "Até 20 jogos",
+        "pdfLimit": "3 relatórios PDF / mês"
+      },
       "basic": {
-        "teams": "1 team",
-        "liveScouting": "Live scouting",
-        "basicMetrics": "Basic metrics",
-        "matchLimit": "Limit of 10 matches"
+        "teams": "1 equipa · 1 utilizador",
+        "liveScouting": "Live scouting completo",
+        "analytics": "Analytics básico",
+        "matchDay": "Match Day",
+        "matchLimit": "Até 20 jogos",
+        "pdfLimit": "3 relatórios PDF / mês"
       },
       "pro": {
-        "teams": "5 teams",
-        "analytics": "Full analytics",
-        "aiPatterns": "AI pattern detection",
-        "aiTraining": "AI training plans",
-        "pdfReports": "PDF reports",
+        "teams": "5 equipas · 1 utilizador / equipa",
+        "opponents": "Scouting de adversários",
+        "analytics": "Analytics completo",
         "scenario": "Scenario modeling",
-        "videoTagging": "Video tagging"
+        "aiPatterns": "AI pattern detection",
+        "pdfReports": "Relatórios PDF ilimitados",
+        "exportCsv": "Export CSV"
       },
       "club": {
-        "teams": "Unlimited teams",
-        "allPro": "Everything in Pro",
-        "payments": "Fees & attendance management",
-        "api": "API access",
-        "support": "Priority support"
+        "teams": "Equipas ilimitadas · 1 utilizador / equipa",
+        "allPro": "Tudo do Pro",
+        "aiTraining": "AI training plans",
+        "aiLive": "Sugestões IA em tempo real",
+        "clubDashboard": "Dashboard de clube",
+        "support": "Suporte prioritário"
       }
-    }
+    },
+    "addons": "Utilizadores adicionais: +€5 / utilizador / mês em todos os planos"
   },
   "setupGuide": {
     "title": "Getting started",
