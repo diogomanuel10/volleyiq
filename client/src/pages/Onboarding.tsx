@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronDown, Users } from "lucide-react";
+import { ChevronDown, Users, Check, ArrowRight, ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,56 @@ import { Label } from "@/components/ui/label";
 import { logout } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
 import type { Team } from "@shared/schema";
+import type { Plan } from "@shared/types";
+
+// ── Dados dos planos ──────────────────────────────────────────────────────────
+
+const PLANS_CONFIG = [
+  {
+    id: "individual" as Plan,
+    name: "Individual",
+    monthlyPrice: 19,
+    blurb: "Para treinadores individuais",
+    features: [
+      "1 equipa",
+      "Live scouting completo",
+      "Analytics básico",
+      "Match Day",
+      "Até 20 jogos",
+      "3 PDFs / mês",
+    ],
+  },
+  {
+    id: "pro" as Plan,
+    name: "Pro",
+    monthlyPrice: 49,
+    blurb: "Para treinadores com múltiplas equipas",
+    popular: true,
+    features: [
+      "5 equipas",
+      "Scouting de adversários",
+      "Analytics completo",
+      "Scenario modeling",
+      "AI pattern detection",
+      "Relatórios PDF ilimitados",
+      "Export CSV",
+    ],
+  },
+  {
+    id: "club" as Plan,
+    name: "Club",
+    monthlyPrice: 119,
+    blurb: "Para clubes com múltiplas equipas",
+    features: [
+      "Equipas ilimitadas",
+      "Tudo do Pro",
+      "AI training plans",
+      "Sugestões IA em tempo real",
+      "Dashboard de clube",
+      "Suporte prioritário",
+    ],
+  },
+] as const;
 
 interface FormState {
   name: string;
@@ -29,61 +79,244 @@ const INITIAL: FormState = {
   primaryColor: "#0ea5e9",
 };
 
+// ── Componente principal ──────────────────────────────────────────────────────
+
 export default function Onboarding() {
   const { t } = useTranslation();
+  const [step, setStep] = useState<"plan" | "team">("plan");
+  const [selectedPlan, setSelectedPlan] = useState<Plan>("pro");
   const [mode, setMode] = useState<"create" | "join">("create");
 
   return (
     <div className="min-h-full flex items-center justify-center p-4 md:p-8 bg-background">
-      <div className="w-full max-w-xl space-y-6">
-        <div className="text-center">
-          <h1 className="text-3xl font-semibold tracking-tight">
-            {t("onboarding.welcome")}
-          </h1>
-          <p className="mt-2 text-muted-foreground">
-            {t("onboarding.subtitle")}
-          </p>
+      <div className="w-full max-w-3xl space-y-6">
+
+        {/* Logo */}
+        <div className="flex justify-center">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
+              <span className="text-primary-foreground font-bold text-sm">V</span>
+            </div>
+            <span className="font-bold text-lg">VolleyIQ</span>
+          </div>
         </div>
 
-        {/* Tab switcher */}
-        <div className="flex rounded-lg border overflow-hidden">
-          <button
-            className={cn(
-              "flex-1 py-2.5 text-sm font-medium transition-colors",
-              mode === "create"
-                ? "bg-primary text-primary-foreground"
-                : "hover:bg-accent text-muted-foreground",
-            )}
-            onClick={() => setMode("create")}
-          >
-            {t("onboarding.createTeam")}
-          </button>
-          <button
-            className={cn(
-              "flex-1 py-2.5 text-sm font-medium transition-colors",
-              mode === "join"
-                ? "bg-primary text-primary-foreground"
-                : "hover:bg-accent text-muted-foreground",
-            )}
-            onClick={() => setMode("join")}
-          >
-            {t("onboarding.joinTeam")}
-          </button>
+        {/* Step indicator */}
+        <div className="flex items-center justify-center gap-2">
+          <div className={cn(
+            "flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold border-2 transition-colors",
+            step === "plan"
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-primary bg-primary text-primary-foreground",
+          )}>
+            {step === "team" ? <Check className="h-3.5 w-3.5" /> : "1"}
+          </div>
+          <div className={cn("h-px w-12 transition-colors", step === "team" ? "bg-primary" : "bg-border")} />
+          <div className={cn(
+            "flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold border-2 transition-colors",
+            step === "team"
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-border text-muted-foreground",
+          )}>
+            2
+          </div>
         </div>
 
-        {mode === "create" ? <CreateTeamForm /> : <JoinTeamForm />}
+        {step === "plan" ? (
+          <PlanStep
+            selected={selectedPlan}
+            onSelect={setSelectedPlan}
+            onContinue={() => setStep("team")}
+          />
+        ) : (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h1 className="text-2xl font-bold tracking-tight">
+                {t("onboarding.welcome")}
+              </h1>
+              <p className="mt-1.5 text-muted-foreground text-sm">
+                {t("onboarding.subtitle")}
+              </p>
+            </div>
 
-        <div className="text-center">
-          <Button variant="ghost" size="sm" onClick={() => logout()}>
-            {t("onboarding.logout")}
-          </Button>
-        </div>
+            {/* Tab switcher */}
+            <div className="flex rounded-lg border overflow-hidden">
+              <button
+                className={cn(
+                  "flex-1 py-2.5 text-sm font-medium transition-colors",
+                  mode === "create"
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-accent text-muted-foreground",
+                )}
+                onClick={() => setMode("create")}
+              >
+                {t("onboarding.createTeam")}
+              </button>
+              <button
+                className={cn(
+                  "flex-1 py-2.5 text-sm font-medium transition-colors",
+                  mode === "join"
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-accent text-muted-foreground",
+                )}
+                onClick={() => setMode("join")}
+              >
+                {t("onboarding.joinTeam")}
+              </button>
+            </div>
+
+            {mode === "create"
+              ? <CreateTeamForm plan={selectedPlan} />
+              : <JoinTeamForm />
+            }
+
+            <div className="flex items-center justify-between">
+              <Button variant="ghost" size="sm" onClick={() => setStep("plan")}>
+                <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Mudar plano
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => logout()}>
+                {t("onboarding.logout")}
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function CreateTeamForm() {
+// ── Passo 1: Seleção de plano ─────────────────────────────────────────────────
+
+function PlanStep({
+  selected,
+  onSelect,
+  onContinue,
+}: {
+  selected: Plan;
+  onSelect: (p: Plan) => void;
+  onContinue: () => void;
+}) {
+  const [annual, setAnnual] = useState(false);
+
+  function annualPrice(monthly: number) {
+    return Math.round(monthly * 0.85);
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center">
+        <h1 className="text-2xl font-bold tracking-tight">Escolhe o teu plano</h1>
+        <p className="mt-1.5 text-muted-foreground text-sm">
+          7 dias grátis com acesso completo · Sem cartão de crédito
+        </p>
+      </div>
+
+      {/* Toggle mensal / anual */}
+      <div className="flex items-center justify-center gap-3">
+        <span className={cn("text-sm transition-colors", !annual ? "font-semibold text-foreground" : "text-muted-foreground")}>
+          Mensal
+        </span>
+        <button
+          role="switch"
+          aria-checked={annual}
+          onClick={() => setAnnual(v => !v)}
+          className={cn(
+            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            annual ? "bg-primary" : "bg-input",
+          )}
+        >
+          <span className={cn(
+            "inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
+            annual ? "translate-x-6" : "translate-x-1",
+          )} />
+        </button>
+        <span className={cn("text-sm transition-colors flex items-center gap-1.5", annual ? "font-semibold text-foreground" : "text-muted-foreground")}>
+          Anual
+          <span className="text-[10px] font-bold bg-emerald-500/15 text-emerald-600 border border-emerald-500/25 rounded-full px-1.5 py-0.5">
+            −15%
+          </span>
+        </span>
+      </div>
+
+      {/* Cards de plano */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {PLANS_CONFIG.map((plan) => {
+          const price = annual ? annualPrice(plan.monthlyPrice) : plan.monthlyPrice;
+          const isSelected = selected === plan.id;
+
+          return (
+            <button
+              key={plan.id}
+              onClick={() => onSelect(plan.id)}
+              className={cn(
+                "relative text-left rounded-xl border p-5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                isSelected
+                  ? "border-primary bg-primary/5 shadow-md shadow-primary/10"
+                  : "border-border hover:border-border/80 hover:bg-accent/40",
+              )}
+            >
+              {"popular" in plan && plan.popular && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <span className="bg-primary text-primary-foreground text-[10px] font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap">
+                    Mais popular
+                  </span>
+                </div>
+              )}
+
+              {isSelected && (
+                <div className="absolute top-3 right-3">
+                  <div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center">
+                    <Check className="h-3 w-3 text-primary-foreground" />
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                    {plan.name}
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-bold">€{price}</span>
+                    <span className="text-sm text-muted-foreground">/mês</span>
+                  </div>
+                  {annual && (
+                    <div className="text-[11px] text-muted-foreground mt-0.5">
+                      Faturado €{price * 12}/ano
+                    </div>
+                  )}
+                  <div className="text-xs text-muted-foreground mt-1">{plan.blurb}</div>
+                </div>
+
+                <ul className="space-y-1.5">
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex items-start gap-1.5 text-xs">
+                      <Check className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <Button className="w-full" size="lg" onClick={onContinue}>
+        Continuar com {PLANS_CONFIG.find(p => p.id === selected)?.name} — trial de 7 dias
+        <ArrowRight className="h-4 w-4 ml-1" />
+      </Button>
+
+      <p className="text-center text-xs text-muted-foreground">
+        Sem cartão de crédito · Cancela a qualquer momento
+      </p>
+    </div>
+  );
+}
+
+// ── Passo 2: Criar equipa ─────────────────────────────────────────────────────
+
+function CreateTeamForm({ plan }: { plan: Plan }) {
   const { t } = useTranslation();
   const [form, setForm] = useState<FormState>(INITIAL);
   const [showOptional, setShowOptional] = useState(false);
@@ -98,6 +331,7 @@ function CreateTeamForm() {
         season: data.season.trim() || null,
         division: data.division.trim() || null,
         primaryColor: data.primaryColor || null,
+        plan,
       }),
     onSuccess: () => {
       toast.success(t("onboarding.form.created"));
@@ -255,6 +489,8 @@ function CreateTeamForm() {
     </form>
   );
 }
+
+// ── Passo 2 (alternativo): Juntar-se a uma equipa ─────────────────────────────
 
 function JoinTeamForm() {
   const { t } = useTranslation();
