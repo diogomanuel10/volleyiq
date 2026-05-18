@@ -16,6 +16,7 @@ import {
 import { detectPatterns } from "./ai/patterns";
 import { recommendTraining } from "./ai/training";
 import { teamChat } from "./ai/chat";
+import { buildExportWorkbook } from "./export";
 import { mirrorStatus } from "./firestore";
 import {
   buildDashboard,
@@ -539,6 +540,29 @@ router.get(
   async (req: any, res) => {
     const data = await buildInsights(req.teamId);
     res.json(data);
+  },
+);
+
+router.get(
+  "/stats/team/:teamId/export",
+  requireTeamAccess,
+  async (req: any, res) => {
+    try {
+      const buf = await buildExportWorkbook(req.teamId);
+      const date = new Date().toISOString().slice(0, 10);
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="volleyiq-export-${date}.xlsx"`,
+      );
+      res.send(buf);
+    } catch (err) {
+      console.error("export error", err);
+      res.status(500).json({ error: "export_failed" });
+    }
   },
 );
 

@@ -720,7 +720,7 @@ const POINT_FOR_US = (a: ActionRow) =>
 const POINT_AGAINST_US = (a: ActionRow) =>
   a.result === "error" || (a.type === "attack" && a.result === "blocked");
 
-function buildRotationStats(sortedRows: ActionRow[]): RotationStat[] {
+export function buildRotationStats(sortedRows: ActionRow[]): RotationStat[] {
   // Agrupa por rallyId. Para cada rally: rotação inicial, se servimos ou
   // recebemos, e se ganhámos. A "vitória" no rally é determinada pelo
   // resultado da última acção registada (mesmo modelo do reducer client).

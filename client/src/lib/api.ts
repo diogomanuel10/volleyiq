@@ -42,9 +42,28 @@ async function request<T>(
   return res.json() as Promise<T>;
 }
 
+async function downloadBlob(path: string, filename: string): Promise<void> {
+  const token = await getIdToken();
+  if (!token) throw new Error("Not signed in");
+  const res = await fetch(resolveUrl(path), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 export const api = {
   get: <T>(path: string) => request<T>("GET", path),
   post: <T>(path: string, body: unknown) => request<T>("POST", path, body),
   patch: <T>(path: string, body: unknown) => request<T>("PATCH", path, body),
   delete: <T>(path: string) => request<T>("DELETE", path),
+  download: (path: string, filename: string) => downloadBlob(path, filename),
 };

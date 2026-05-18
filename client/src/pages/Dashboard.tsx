@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
@@ -15,6 +17,8 @@ import {
   Radio,
   CalendarPlus,
   Users,
+  FileSpreadsheet,
+  Loader2,
 } from "lucide-react";
 import { useTeam } from "@/hooks/useTeam";
 import { api } from "@/lib/api";
@@ -126,6 +130,7 @@ const MOCK: DashboardStats = {
 export default function Dashboard() {
   const { team } = useTeam();
   const { t } = useTranslation();
+  const [exporting, setExporting] = useState(false);
 
   const statsQuery = useQuery({
     queryKey: ["stats", team?.id],
@@ -202,15 +207,45 @@ export default function Dashboard() {
             {t("dashboard.subtitle", { team: team.name })}
           </p>
         </div>
-        {isEmpty || !real ? (
-          <Badge variant="outline" className="gap-1">
-            <Database className="h-3 w-3" /> {t("dashboard.exampleBadge")}
-          </Badge>
-        ) : (
-          <Badge variant="success" className="gap-1">
-            <TrendingUp className="h-3 w-3" /> {t("dashboard.actionsBadge", { count: real.sampleActions })}
-          </Badge>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {isEmpty || !real ? (
+            <Badge variant="outline" className="gap-1">
+              <Database className="h-3 w-3" /> {t("dashboard.exampleBadge")}
+            </Badge>
+          ) : (
+            <Badge variant="success" className="gap-1">
+              <TrendingUp className="h-3 w-3" /> {t("dashboard.actionsBadge", { count: real.sampleActions })}
+            </Badge>
+          )}
+          {real && !isEmpty && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={exporting}
+              onClick={async () => {
+                setExporting(true);
+                try {
+                  const date = new Date().toISOString().slice(0, 10);
+                  await api.download(
+                    `/api/stats/team/${team.id}/export`,
+                    `volleyiq-${team.name.replace(/\s+/g, "-")}-${date}.xlsx`,
+                  );
+                } catch {
+                  toast.error("Erro ao exportar. Tenta novamente.");
+                } finally {
+                  setExporting(false);
+                }
+              }}
+            >
+              {exporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="h-4 w-4" />
+              )}
+              <span className="ml-1.5">Exportar Excel</span>
+            </Button>
+          )}
+        </div>
       </header>
 
       {(isEmpty || !real) && (() => {
