@@ -27,6 +27,7 @@ import {
   SkipForward,
   StopCircle,
   Play,
+  FileDown,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
@@ -60,6 +61,7 @@ import {
   type ActionType,
   type ActionResult,
 } from "@shared/types";
+import { generateDvw, downloadDvw } from "@/lib/dvwExport";
 
 interface PlayerLine {
   playerId: string;
@@ -295,6 +297,62 @@ function Summary({
     retry: false,
   });
 
+  // Raw actions — fetched on-demand for DVW export (lazy, enabled only when needed)
+  const [exportDvwPending, setExportDvwPending] = useState(false);
+
+  async function handleExportDvw() {
+    if (!summaryQuery.data) return;
+    setExportDvwPending(true);
+    try {
+      const s = summaryQuery.data;
+      const rawActions = await api.get<Array<{
+        side: "home" | "away";
+        playerId: string | null;
+        type: ActionType;
+        result: ActionResult;
+        setId: string | null;
+      }>>(`/api/matches/${matchId}/actions`);
+
+      // Map playerId → player number from the summary roster
+      const playerById = new Map(s.players.map((p) => [p.playerId, p]));
+
+      const slug = s.opponent.replace(/\s+/g, "-").toLowerCase();
+      const filename = `volleyiq-${slug}-${matchId.slice(0, 6)}.dvw`;
+
+      downloadDvw(
+        generateDvw({
+          matchDate: new Date(),
+          competition: null,
+          homeTeamName: "A minha equipa",
+          awayTeamName: s.opponent,
+          setsWon: s.setsWon,
+          setsLost: s.setsLost,
+          homePlayers: s.players.map((p) => ({
+            number: p.number,
+            firstName: p.firstName,
+            lastName: p.lastName,
+            position: p.position,
+          })),
+          awayPlayers: [],
+          actions: rawActions
+            .filter((a) => a.side === "home")
+            .map((a) => ({
+              side: "home" as const,
+              playerNumber: a.playerId ? (playerById.get(a.playerId)?.number ?? 0) : 0,
+              type: a.type,
+              result: a.result,
+            }))
+            .filter((a) => a.playerNumber > 0),
+        }),
+        filename,
+      );
+    } catch {
+      toast.error("Erro ao exportar para DataVolley.");
+    } finally {
+      setExportDvwPending(false);
+    }
+  }
+
   if (summaryQuery.isLoading) {
     return (
       <div className="p-4 md:p-8 max-w-screen-2xl mx-auto space-y-4">
@@ -493,6 +551,19 @@ function Summary({
               CSV
             </Button>
           </PlanGate>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 print-hide"
+            onClick={handleExportDvw}
+            disabled={exportDvwPending}
+            title="Exportar para DataVolley (.dvw)"
+          >
+            {exportDvwPending
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : <FileDown className="h-4 w-4" />}
+            .dvw
+          </Button>
         </div>
       </header>
 
