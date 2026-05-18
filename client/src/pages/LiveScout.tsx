@@ -12,6 +12,7 @@ import {
   Radio,
   Repeat,
   SkipForward,
+  Tablet,
   Users,
   Video,
   Zap,
@@ -56,6 +57,7 @@ import {
   type ScoutHelpTab,
 } from "@/components/scout/KeyboardHelp";
 import { WelcomeBanner } from "@/components/scout/WelcomeBanner";
+import { TabletScout } from "@/components/scout/TabletScout";
 import { LastActionPill } from "@/components/scout/LastActionPill";
 import { StepProgress } from "@/components/scout/StepProgress";
 import { SuggestionsPanel } from "@/components/scout/SuggestionsPanel";
@@ -182,6 +184,13 @@ function Scout({
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpTab, setHelpTab] = useState<ScoutHelpTab>("shortcuts");
   const [welcomeDismissed, setWelcomeDismissed] = useState(true);
+  const [tabletMode, setTabletMode] = useState(() => {
+    try {
+      return window.localStorage.getItem("volleyiq:scout:tabletMode") === "1";
+    } catch {
+      return false;
+    }
+  });
 
   // Banner de primeira visita: aparece se não estiver na flag local. Lemos
   // de forma lazy para evitar acessos a window durante SSR/hidratação.
@@ -743,6 +752,27 @@ function Scout({
           onDismiss={dismissWelcome}
         />
       )}
+      {tabletMode && match && (
+        <TabletScout
+          state={state}
+          dispatch={dispatch}
+          onCourt={onCourt}
+          bench={bench}
+          homeScore={state.homeScore}
+          awayScore={state.awayScore}
+          setNumber={state.setNumber}
+          opponentName={match.opponent}
+          onClose={() => {
+            setTabletMode(false);
+            try {
+              window.localStorage.setItem("volleyiq:scout:tabletMode", "0");
+            } catch {
+              // ignora
+            }
+          }}
+        />
+      )}
+
       <header className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
           <Button variant="ghost" size="icon" onClick={onBack} aria-label={t("livescout.backButton")}>
@@ -809,6 +839,26 @@ function Scout({
           >
             <Repeat className="h-4 w-4" />
             <span className="hidden sm:inline ml-1">{t("livescout.subs")}</span>
+          </Button>
+          <Button
+            size="sm"
+            variant={tabletMode ? "secondary" : "ghost"}
+            onClick={() => {
+              const next = !tabletMode;
+              setTabletMode(next);
+              try {
+                window.localStorage.setItem(
+                  "volleyiq:scout:tabletMode",
+                  next ? "1" : "0",
+                );
+              } catch {
+                // ignora
+              }
+            }}
+            title="Modo tablet"
+          >
+            <Tablet className="h-4 w-4" />
+            <span className="hidden sm:inline ml-1">Tablet</span>
           </Button>
           <Button
             size="sm"
