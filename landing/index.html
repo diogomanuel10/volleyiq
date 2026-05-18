@@ -305,6 +305,7 @@
     .plan-name { font-size: .82rem; font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: .08em; margin-bottom: .5rem; }
     .plan-price { font-size: 2.5rem; font-weight: 800; letter-spacing: -.03em; }
     .plan-price span { font-size: 1rem; font-weight: 400; color: var(--dim); }
+    .plan-billing { font-size: .78rem; color: var(--muted); margin-top: .2rem; min-height: 1.2em; }
     .plan-blurb { font-size: .85rem; color: var(--dim); margin-top: .4rem; margin-bottom: 1.5rem; }
     .plan-features { display: flex; flex-direction: column; gap: .65rem; margin-bottom: 2rem; }
     .plan-feature { display: flex; align-items: flex-start; gap: .6rem; font-size: .85rem; }
@@ -320,6 +321,35 @@
     .plan-btn-outline { background: transparent; border: 1.5px solid rgba(255,255,255,.2); color: var(--white); }
     .plan-btn-outline:hover { border-color: rgba(255,255,255,.4); }
     .pricing-note { text-align: center; margin-top: 2rem; font-size: .82rem; color: var(--muted); }
+
+    /* ── Billing toggle ───────────────────────────────────────────────── */
+    .billing-toggle {
+      display: flex; align-items: center; justify-content: center; gap: 1rem;
+      margin-bottom: 2.5rem;
+    }
+    .toggle-label { font-size: .9rem; color: var(--dim); cursor: pointer; transition: color .15s; }
+    .toggle-label.active { color: var(--white); font-weight: 600; }
+    .toggle-switch {
+      position: relative; width: 48px; height: 26px; cursor: pointer;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-track {
+      position: absolute; inset: 0; background: var(--slate2);
+      border-radius: 999px; transition: background .2s;
+      border: 1px solid rgba(255,255,255,.15);
+    }
+    .toggle-switch input:checked + .toggle-track { background: var(--sky); }
+    .toggle-thumb {
+      position: absolute; top: 3px; left: 3px;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: var(--white); transition: transform .2s;
+    }
+    .toggle-switch input:checked ~ .toggle-thumb { transform: translateX(22px); }
+    .save-badge {
+      background: rgba(34,197,94,.15); color: #4ade80;
+      border: 1px solid rgba(34,197,94,.25); border-radius: 999px;
+      font-size: .72rem; font-weight: 700; padding: .15rem .55rem;
+    }
 
     /* ── Testimonials ─────────────────────────────────────────────────── */
     .testimonials-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
@@ -762,12 +792,24 @@
       <p>7 dias grátis com acesso completo. Sem cartão de crédito.</p>
     </div>
 
+    <!-- Billing toggle -->
+    <div class="billing-toggle">
+      <span class="toggle-label active" id="label-monthly">Mensal</span>
+      <label class="toggle-switch" aria-label="Alternar entre faturação mensal e anual">
+        <input type="checkbox" id="billing-toggle" />
+        <div class="toggle-track"></div>
+        <div class="toggle-thumb"></div>
+      </label>
+      <span class="toggle-label" id="label-annual">Anual <span class="save-badge">-15%</span></span>
+    </div>
+
     <div class="pricing-grid">
       <!-- Pro -->
       <div class="plan-card featured">
         <div class="plan-badge">Mais popular</div>
         <div class="plan-name">Pro</div>
-        <div class="plan-price">€39 <span>/mês</span></div>
+        <div class="plan-price" id="price-pro">€39 <span>/mês</span></div>
+        <div class="plan-billing" id="billing-pro"></div>
         <div class="plan-blurb">Para treinadores e clubes pequenos</div>
         <ul class="plan-features" aria-label="Funcionalidades do plano Pro">
           <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>5 equipas</li>
@@ -784,7 +826,8 @@
       <!-- Club -->
       <div class="plan-card">
         <div class="plan-name">Club</div>
-        <div class="plan-price">€119 <span>/mês</span></div>
+        <div class="plan-price" id="price-club">€119 <span>/mês</span></div>
+        <div class="plan-billing" id="billing-club"></div>
         <div class="plan-blurb">Para clubes com múltiplas equipas</div>
         <ul class="plan-features" aria-label="Funcionalidades do plano Club">
           <li class="plan-feature"><div class="plan-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>Equipas ilimitadas</li>
@@ -797,9 +840,40 @@
       </div>
     </div>
 
-    <p class="pricing-note">7 dias grátis com acesso completo · Sem cartão de crédito · Cancela a qualquer momento</p>
+    <p class="pricing-note" id="pricing-note">7 dias grátis com acesso completo · Sem cartão de crédito · Cancela a qualquer momento</p>
   </div>
 </section>
+
+<script>
+  const toggle = document.getElementById('billing-toggle');
+  const labelMonthly = document.getElementById('label-monthly');
+  const labelAnnual = document.getElementById('label-annual');
+  const pricePro = document.getElementById('price-pro');
+  const priceClub = document.getElementById('price-club');
+  const billingPro = document.getElementById('billing-pro');
+  const billingClub = document.getElementById('billing-club');
+  const note = document.getElementById('pricing-note');
+
+  toggle.addEventListener('change', () => {
+    const annual = toggle.checked;
+    labelMonthly.classList.toggle('active', !annual);
+    labelAnnual.classList.toggle('active', annual);
+
+    if (annual) {
+      pricePro.innerHTML = '€33 <span>/mês</span>';
+      priceClub.innerHTML = '€101 <span>/mês</span>';
+      billingPro.textContent = 'Faturado €396/ano · poupas €72';
+      billingClub.textContent = 'Faturado €1212/ano · poupas €216';
+      note.textContent = '7 dias grátis · Faturação anual · Cancela a qualquer momento';
+    } else {
+      pricePro.innerHTML = '€39 <span>/mês</span>';
+      priceClub.innerHTML = '€119 <span>/mês</span>';
+      billingPro.textContent = '';
+      billingClub.textContent = '';
+      note.textContent = '7 dias grátis com acesso completo · Sem cartão de crédito · Cancela a qualquer momento';
+    }
+  });
+</script>
 
 <!-- ── CTA ──────────────────────────────────────────────────────────────────── -->
 <section>
