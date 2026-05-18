@@ -148,10 +148,12 @@ async function requireTeamAccess(req: any, res: any, next: any) {
   if (!ok) return res.status(403).json({ error: "forbidden" });
   req.teamId = teamId;
   const team = await storage.getTeamById(teamId);
-  req.teamPlan = (team?.plan ?? "individual") as Plan;
   if (team && !isTeamAccessible(team)) {
     return res.status(402).json({ error: "trial_expired", trialEndsAt: team.trialEndsAt });
   }
+  // Durante o trial (sem subscrição activa) o plano efectivo é "club" — acesso total.
+  const onTrial = team && !team.subscribedAt && team.trialEndsAt && team.trialEndsAt > new Date();
+  req.teamPlan = onTrial ? "club" : ((team?.plan ?? "individual") as Plan);
   next();
 }
 

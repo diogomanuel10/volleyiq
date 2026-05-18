@@ -4,8 +4,10 @@ import type { Plan } from "@shared/types";
 import type { PlanLimits } from "@shared/planFeatures";
 
 export function usePlanGuard() {
-  const { team } = useTeam();
-  const plan = (team?.plan ?? "individual") as Plan;
+  const { team, isSubscribed, isTrialExpired } = useTeam();
+  const onTrial = !isSubscribed && !isTrialExpired && Boolean(team);
+  // Durante o trial o utilizador tem acesso total (equivalente a Club).
+  const plan: Plan = onTrial ? "club" : ((team?.plan ?? "individual") as Plan);
   const features = PLAN_FEATURES[plan];
 
   function can(feature: keyof PlanLimits): boolean {
