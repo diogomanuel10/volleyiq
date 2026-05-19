@@ -21,8 +21,26 @@ import { cn } from "@/lib/utils";
 import { useSidebarCollapsed } from "@/lib/sidebar";
 import { TeamSwitcher } from "./TeamSwitcher";
 import { useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { usePlanGuard } from "@/hooks/usePlanGuard";
+
+const NAV_LABELS: Record<string, string> = {
+  dashboard: "Dashboard",
+  liveScout: "Live Scout",
+  matches: "Jogos",
+  players: "Jogadores",
+  opponents: "Adversários",
+  matchDay: "Match Day",
+  scoutingReport: "Scouting Report",
+  scenario: "Scenario",
+  postMatch: "Post-Match",
+  gettingStarted: "Como Começar",
+  pricing: "Pricing",
+  settings: "Definições",
+  clubDashboard: "Club Dashboard",
+  apiKeys: "Chaves de API",
+  webhooks: "Webhooks",
+  apiDocs: "API Docs",
+};
 
 const NAV_ITEMS = [
   { href: "/", icon: LayoutDashboard, key: "dashboard" },
@@ -44,7 +62,6 @@ export function Sidebar() {
   const { collapsed } = useSidebarCollapsed();
   const [hovered, setHovered] = useState(false);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { t } = useTranslation();
   const guard = usePlanGuard();
 
   const navItems = [
@@ -110,18 +127,7 @@ export function Sidebar() {
       </div>
       <nav className={cn("flex-1 space-y-0.5", expanded ? "p-2" : "p-1.5")}>
         {navItems.map((it) => {
-          const label =
-            it.key === "clubDashboard"
-              ? "Club Dashboard"
-              : it.key === "apiKeys"
-              ? "Chaves de API"
-              : it.key === "webhooks"
-              ? "Webhooks"
-              : it.key === "gettingStarted"
-              ? "Como Começar"
-              : it.key === "apiDocs"
-              ? "API Docs"
-              : t(`nav.${it.key}`);
+          const label = NAV_LABELS[it.key] ?? it.key;
           const active =
             it.href === "/"
               ? location === "/"
