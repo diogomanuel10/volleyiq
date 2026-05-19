@@ -79,7 +79,7 @@ export const PLAN_FEATURES: Record<Plan, PlanLimits> = {
 };
 
 export function planHasFeature(plan: Plan, feature: keyof PlanLimits): boolean {
-  const limits = PLAN_FEATURES[plan];
+  const limits = PLAN_FEATURES[plan] ?? PLAN_FEATURES["individual"];
   const val = limits[feature];
   return typeof val === "boolean" ? val : (val as number) !== 0;
 }
