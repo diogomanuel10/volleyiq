@@ -23,9 +23,21 @@ import Profile from "@/pages/Profile";
 import ClubDashboard from "@/pages/ClubDashboard";
 import ApiKeysPage from "@/pages/ApiKeysPage";
 import WebhooksPage from "@/pages/WebhooksPage";
+import ApiDocsPage from "@/pages/ApiDocsPage";
+import GettingStartedPage from "@/pages/GettingStartedPage";
 
 export default function App() {
   const { isAuthed, isLoading: authLoading } = useAuth();
+
+  // Public routes — accessible without authentication
+  const hash = window.location.hash;
+  if (hash === "#/docs/api" || hash.startsWith("#/docs/api?")) {
+    return (
+      <WouterRouter hook={useHashLocation}>
+        <ApiDocsPage />
+      </WouterRouter>
+    );
+  }
 
   if (authLoading) return <Loading />;
 
@@ -75,6 +87,8 @@ function AuthedApp() {
           <Route path="/settings/api-keys" component={ApiKeysPage} />
           <Route path="/settings/webhooks" component={WebhooksPage} />
           <Route path="/profile" component={Profile} />
+          <Route path="/getting-started" component={GettingStartedPage} />
+          <Route path="/docs/api" component={ApiDocsPage} />
           <Route>
             <div className="p-8 text-muted-foreground">Página não encontrada.</div>
           </Route>

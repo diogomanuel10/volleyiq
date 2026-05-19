@@ -14,6 +14,8 @@ import {
   Building2,
   KeyRound,
   Webhook,
+  BookOpen,
+  Code2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebarCollapsed } from "@/lib/sidebar";
@@ -32,6 +34,7 @@ const NAV_ITEMS = [
   { href: "/reports", icon: FileText, key: "scoutingReport" },
   { href: "/scenario", icon: Shuffle, key: "scenario" },
   { href: "/post-match", icon: CalendarDays, key: "postMatch" },
+  { href: "/getting-started", icon: BookOpen, key: "gettingStarted" },
   { href: "/pricing", icon: Sparkles, key: "pricing" },
   { href: "/settings", icon: Settings, key: "settings" },
 ];
@@ -55,6 +58,7 @@ export function Sidebar() {
           { href: "/settings/webhooks", icon: Webhook, key: "webhooks" as const },
         ]
       : []),
+    { href: "/docs/api", icon: Code2, key: "apiDocs" as const },
   ];
 
   // Expande se não estiver collapsed (pin) OU se estiver em hover
@@ -113,6 +117,10 @@ export function Sidebar() {
               ? "Chaves de API"
               : it.key === "webhooks"
               ? "Webhooks"
+              : it.key === "gettingStarted"
+              ? "Como Começar"
+              : it.key === "apiDocs"
+              ? "API Docs"
               : t(`nav.${it.key}`);
           const active =
             it.href === "/"
