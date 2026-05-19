@@ -16,6 +16,7 @@ import {
 import { detectPatterns } from "./ai/patterns";
 import { recommendTraining } from "./ai/training";
 import { teamChat } from "./ai/chat";
+import { getTacticalSuggestions } from "./ai/tactical";
 import { buildExportWorkbook } from "./export";
 import { mirrorStatus } from "./firestore";
 import {
@@ -611,6 +612,21 @@ router.post("/ai/chat", async (req: any, res) => {
     res.json({ answer });
   } catch (err: any) {
     console.error("chat error", err);
+    res.status(500).json({ error: "ai_failed" });
+  }
+});
+
+// ── AI Tactical ───────────────────────────────────────────────────────────────────────────────
+router.post("/ai/tactical", async (req: any, res) => {
+  const { teamId, context } = req.body;
+  if (!teamId || !context) return res.status(400).json({ error: "missing_fields" });
+  const ok = await storage.userBelongsToTeam(req.user!.uid, teamId);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  try {
+    const suggestions = await getTacticalSuggestions(context);
+    res.json({ suggestions });
+  } catch (err) {
+    console.error("tactical error", err);
     res.status(500).json({ error: "ai_failed" });
   }
 });
