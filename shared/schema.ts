@@ -417,6 +417,20 @@ export const insertOpponentCoachSchema = createInsertSchema(
 export type OpponentCoach = InferSelectModel<typeof opponentCoaches>;
 export type InsertOpponentCoach = z.infer<typeof insertOpponentCoachSchema>;
 
+// ── API Keys ──────────────────────────────────────────────────────────────
+export const apiKeys = pgTable("api_keys", {
+  id: text("id").primaryKey(),
+  teamId: text("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  keyHash: text("key_hash").notNull().unique(),
+  keyPrefix: text("key_prefix").notNull(), // first 12 chars for display (e.g. "viq_abc12345")
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  lastUsedAt: timestamp("last_used_at"),
+  revokedAt: timestamp("revoked_at"),
+});
+
+export type ApiKey = typeof apiKeys.$inferSelect;
+
 // ── User preferences (language, etc.) ────────────────────────────────────
 export const userPreferences = pgTable("user_preferences", {
   uid: text("uid").primaryKey(),

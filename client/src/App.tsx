@@ -21,6 +21,7 @@ import OpponentDetail from "@/pages/OpponentDetail";
 import TeamSettings from "@/pages/TeamSettings";
 import Profile from "@/pages/Profile";
 import ClubDashboard from "@/pages/ClubDashboard";
+import ApiKeysPage from "@/pages/ApiKeysPage";
 
 export default function App() {
   const { isAuthed, isLoading: authLoading } = useAuth();
@@ -70,6 +71,7 @@ function AuthedApp() {
           <Route path="/club" component={ClubDashboard} />
           <Route path="/pricing" component={Pricing} />
           <Route path="/settings" component={TeamSettings} />
+          <Route path="/settings/api-keys" component={ApiKeysPage} />
           <Route path="/profile" component={Profile} />
           <Route>
             <div className="p-8 text-muted-foreground">Página não encontrada.</div>

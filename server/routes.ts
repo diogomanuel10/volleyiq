@@ -1039,3 +1039,35 @@ router.patch("/user/preferences", async (req, res) => {
   const prefs = await storage.upsertUserPreferences(uid, parsed.data.language);
   res.json({ language: prefs?.language ?? parsed.data.language });
 });
+
+// ── API Keys ──────────────────────────────────────────────────────────────────
+router.get("/teams/:id/api-keys", async (req: any, res) => {
+  const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  const keys = await storage.listApiKeys(req.params.id);
+  // never return keyHash
+  res.json(keys.map(({ keyHash: _, ...rest }) => rest));
+});
+
+router.post("/teams/:id/api-keys", async (req: any, res) => {
+  const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  const team = await storage.getTeamById(req.params.id);
+  if (!planMeetsMinimum((team?.plan ?? "individual") as Plan, "pro")) {
+    return res.status(403).json({ error: "plan_required", requiredPlan: "pro" });
+  }
+  const name = z.string().min(1).max(60).safeParse(req.body.name);
+  if (!name.success) return res.status(400).json({ error: "invalid_name" });
+  const existing = await storage.listApiKeys(req.params.id);
+  if (existing.length >= 5) return res.status(409).json({ error: "max_keys_reached" });
+  const { key, record } = await storage.createApiKey(req.params.id, name.data);
+  const { keyHash: _, ...safe } = record;
+  res.status(201).json({ key, record: safe }); // key shown only once
+});
+
+router.delete("/teams/:id/api-keys/:keyId", async (req: any, res) => {
+  const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  await storage.revokeApiKey(req.params.keyId, req.params.id);
+  res.status(204).send();
+});

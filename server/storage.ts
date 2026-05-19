@@ -1,5 +1,6 @@
-import { eq, and, desc, inArray, count } from "drizzle-orm";
+import { eq, and, desc, inArray, isNull, count } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import crypto from "crypto";
 import { db } from "./db";
 import {
   teams,
@@ -15,6 +16,7 @@ import {
   lineups,
   substitutions,
   userPreferences,
+  apiKeys,
   type InsertTeam,
   type InsertPlayer,
   type InsertMatch,
@@ -24,6 +26,7 @@ import {
   type InsertOpponentCoach,
   type InsertLineup,
   type InsertSubstitution,
+  type ApiKey,
 } from "@shared/schema";
 import type {
   TrainingPriority,
@@ -812,4 +815,50 @@ export async function upsertUserPreferences(uid: string, language: string) {
     .from(userPreferences)
     .where(eq(userPreferences.uid, uid));
   return row;
+}
+
+// ── API Keys ─────────────────────────────────────────────────────────────
+
+export async function createApiKey(
+  teamId: string,
+  name: string,
+): Promise<{ key: string; record: ApiKey }> {
+  const raw = `viq_${crypto.randomBytes(24).toString("hex")}`; // 52 chars
+  const keyHash = crypto.createHash("sha256").update(raw).digest("hex");
+  const keyPrefix = raw.slice(0, 12);
+  const id = nanoid();
+  const [record] = await db
+    .insert(apiKeys)
+    .values({ id, teamId, name, keyHash, keyPrefix })
+    .returning();
+  return { key: raw, record };
+}
+
+export async function listApiKeys(teamId: string): Promise<ApiKey[]> {
+  return db
+    .select()
+    .from(apiKeys)
+    .where(and(eq(apiKeys.teamId, teamId), isNull(apiKeys.revokedAt)))
+    .orderBy(desc(apiKeys.createdAt));
+}
+
+export async function revokeApiKey(id: string, teamId: string): Promise<void> {
+  await db
+    .update(apiKeys)
+    .set({ revokedAt: new Date() })
+    .where(and(eq(apiKeys.id, id), eq(apiKeys.teamId, teamId)));
+}
+
+export async function getTeamByApiKey(
+  rawKey: string,
+): Promise<string | null> { // returns teamId or null
+  const keyHash = crypto.createHash("sha256").update(rawKey).digest("hex");
+  const [row] = await db
+    .select({ id: apiKeys.id, teamId: apiKeys.teamId })
+    .from(apiKeys)
+    .where(and(eq(apiKeys.keyHash, keyHash), isNull(apiKeys.revokedAt)));
+  if (!row) return null;
+  // fire-and-forget lastUsedAt update
+  db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, row.id)).catch(() => {});
+  return row.teamId;
 }

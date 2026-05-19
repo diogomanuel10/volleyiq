@@ -12,6 +12,7 @@ import {
   Sparkles,
   Settings,
   Building2,
+  KeyRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebarCollapsed } from "@/lib/sidebar";
@@ -46,6 +47,9 @@ export function Sidebar() {
     ...NAV_ITEMS,
     ...(guard.meetsMinimum("club")
       ? [{ href: "/club", icon: Building2, key: "clubDashboard" as const }]
+      : []),
+    ...(guard.meetsMinimum("pro")
+      ? [{ href: "/settings/api-keys", icon: KeyRound, key: "apiKeys" as const }]
       : []),
   ];
 
@@ -98,7 +102,12 @@ export function Sidebar() {
       </div>
       <nav className={cn("flex-1 space-y-0.5", expanded ? "p-2" : "p-1.5")}>
         {navItems.map((it) => {
-          const label = it.key === "clubDashboard" ? "Club Dashboard" : t(`nav.${it.key}`);
+          const label =
+            it.key === "clubDashboard"
+              ? "Club Dashboard"
+              : it.key === "apiKeys"
+              ? "Chaves de API"
+              : t(`nav.${it.key}`);
           const active =
             it.href === "/"
               ? location === "/"
