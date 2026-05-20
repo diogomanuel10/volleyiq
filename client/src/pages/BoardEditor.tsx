@@ -934,6 +934,11 @@ export default function BoardEditor() {
   const [showBgPicker, setShowBgPicker] = useState(false);
   const [undoStack, setUndoStack] = useState<BoardSlideData[][]>([]);
 
+  // Refs to always have latest values available in event handlers / cleanup
+  const slidesRef = useRef<BoardSlideData[]>([]);
+  const boardNameRef = useRef("");
+  const isDirtyRef = useRef(false);
+
   // Container for scale calculation
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
@@ -975,6 +980,11 @@ export default function BoardEditor() {
     setIsDirty(false);
   }, [boardData]);
 
+  // ── Keep refs in sync for use in event handlers / cleanup ───────────────
+  useEffect(() => { slidesRef.current = slides; }, [slides]);
+  useEffect(() => { boardNameRef.current = boardName; }, [boardName]);
+  useEffect(() => { isDirtyRef.current = isDirty; }, [isDirty]);
+
   // ── Auto-save ────────────────────────────────────────────────────────────
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -982,7 +992,7 @@ export default function BoardEditor() {
     async (currentSlides: BoardSlideData[], currentName?: string) => {
       setIsSaving(true);
       try {
-        const nameToSave = currentName ?? boardName;
+        const nameToSave = currentName ?? boardNameRef.current;
         await Promise.all([
           api.patch(`/api/boards/${boardId}`, { name: nameToSave }),
           api.put<{ ok: boolean }>(`/api/boards/${boardId}/slides`,
@@ -996,20 +1006,42 @@ export default function BoardEditor() {
           ),
         ]);
         setIsDirty(false);
+        isDirtyRef.current = false;
         qc.invalidateQueries({ queryKey: ["boards", team?.id] });
-      } catch {
+      } catch (err) {
+        console.error("[board] save error", err);
         toast.error("Erro ao guardar");
       } finally {
         setIsSaving(false);
       }
     },
-    [boardId, boardName, team?.id, qc],
+    [boardId, team?.id, qc],
   );
+
+  // Flush pending save on unmount (e.g. navigating away)
+  useEffect(() => {
+    return () => {
+      if (!isDirtyRef.current) return;
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      void save(slidesRef.current);
+    };
+  }, [save]);
+
+  // Warn browser before tab close / refresh if unsaved
+  useEffect(() => {
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      if (!isDirtyRef.current) return;
+      e.preventDefault();
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
 
   function markDirty(newSlides: BoardSlideData[]) {
     setIsDirty(true);
+    isDirtyRef.current = true;
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(() => save(newSlides), 2000);
+    saveTimeoutRef.current = setTimeout(() => save(newSlides), 500);
   }
 
   // ── Slide operations ─────────────────────────────────────────────────────
