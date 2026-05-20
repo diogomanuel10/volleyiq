@@ -25,24 +25,22 @@ const client = postgres(url, {
 export const db = drizzle(client, { schema });
 export type DB = typeof db;
 
-// Bootstrap direto com IF NOT EXISTS — corre PRIMEIRO, antes de migrate(),
-// para garantir que as tabelas existem independentemente do estado do journal.
-// Seguro correr múltiplas vezes.
-try {
-  await client`ALTER TABLE players ADD COLUMN IF NOT EXISTS photo_url text`;
-  await client`
-    CREATE TABLE IF NOT EXISTS boards (
+// Bootstrap direto — cada statement tem o seu try/catch independente para que
+// um erro num passo não impeça os seguintes. Corre antes de migrate().
+console.log("[db] bootstrap start");
+
+const bootstrapStmts: Array<[string, string]> = [
+  ["photo_url", `ALTER TABLE players ADD COLUMN IF NOT EXISTS photo_url text`],
+  ["boards", `CREATE TABLE IF NOT EXISTS boards (
       id text PRIMARY KEY,
       team_id text NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
       name text NOT NULL,
       description text,
       created_at timestamp NOT NULL DEFAULT now(),
       updated_at timestamp NOT NULL DEFAULT now()
-    )
-  `;
-  await client`CREATE INDEX IF NOT EXISTS boards_team_idx ON boards (team_id)`;
-  await client`
-    CREATE TABLE IF NOT EXISTS board_slides (
+    )`],
+  ["boards_idx", `CREATE INDEX IF NOT EXISTS boards_team_idx ON boards (team_id)`],
+  ["board_slides", `CREATE TABLE IF NOT EXISTS board_slides (
       id text PRIMARY KEY,
       board_id text NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
       title text NOT NULL DEFAULT '',
@@ -50,12 +48,17 @@ try {
       background text NOT NULL DEFAULT '#1e293b',
       elements_json text NOT NULL DEFAULT '[]',
       created_at timestamp NOT NULL DEFAULT now()
-    )
-  `;
-  await client`CREATE INDEX IF NOT EXISTS board_slides_board_idx ON board_slides (board_id)`;
-  console.log("[db] schema bootstrap OK");
-} catch (err) {
-  console.error("[db] schema bootstrap error:", err);
+    )`],
+  ["board_slides_idx", `CREATE INDEX IF NOT EXISTS board_slides_board_idx ON board_slides (board_id)`],
+];
+
+for (const [label, sql] of bootstrapStmts) {
+  try {
+    await client.unsafe(sql);
+    console.log(`[db] bootstrap OK: ${label}`);
+  } catch (err: any) {
+    console.error(`[db] bootstrap FAIL (${label}):`, err?.message ?? err);
+  }
 }
 
 // Migrações Drizzle — em try/catch para que um journal inconsistente não
@@ -64,6 +67,6 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const migrationsFolder = path.resolve(here, "../drizzle");
 try {
   await migrate(db, { migrationsFolder });
-} catch (err) {
-  console.error("[db] migrate error (non-fatal):", err);
+} catch (err: any) {
+  console.error("[db] migrate error (non-fatal):", err?.message ?? err);
 }
