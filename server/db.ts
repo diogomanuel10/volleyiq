@@ -31,3 +31,35 @@ export type DB = typeof db;
 const here = path.dirname(fileURLToPath(import.meta.url));
 const migrationsFolder = path.resolve(here, "../drizzle");
 await migrate(db, { migrationsFolder });
+
+// Belt-and-suspenders: aplica diretamente as colunas/tabelas novas com
+// IF NOT EXISTS, independente do estado do sistema de migrações Drizzle.
+// Seguro correr múltiplas vezes — nunca destrói dados existentes.
+try {
+  await client`ALTER TABLE players ADD COLUMN IF NOT EXISTS photo_url text`;
+  await client`
+    CREATE TABLE IF NOT EXISTS boards (
+      id text PRIMARY KEY,
+      team_id text NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+      name text NOT NULL,
+      description text,
+      created_at timestamp NOT NULL DEFAULT now(),
+      updated_at timestamp NOT NULL DEFAULT now()
+    )
+  `;
+  await client`CREATE INDEX IF NOT EXISTS boards_team_idx ON boards (team_id)`;
+  await client`
+    CREATE TABLE IF NOT EXISTS board_slides (
+      id text PRIMARY KEY,
+      board_id text NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+      title text NOT NULL DEFAULT '',
+      position integer NOT NULL DEFAULT 0,
+      background text NOT NULL DEFAULT '#1e293b',
+      elements_json text NOT NULL DEFAULT '[]',
+      created_at timestamp NOT NULL DEFAULT now()
+    )
+  `;
+  await client`CREATE INDEX IF NOT EXISTS board_slides_board_idx ON board_slides (board_id)`;
+} catch (err) {
+  console.error("[db] schema bootstrap error:", err);
+}
