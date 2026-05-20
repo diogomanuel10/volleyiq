@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { useTeam } from "@/hooks/useTeam";
+import { usePlanGuard } from "@/hooks/usePlanGuard";
 import { changePassword, isEmailUser } from "@/lib/firebase";
 import { PLAN_LABELS } from "@shared/planFeatures";
 
@@ -16,6 +17,7 @@ export default function Profile() {
   const { user } = useAuth();
   const { t } = useTranslation();
   const { team, isSubscribed, trialDaysLeft, isTrialExpired } = useTeam();
+  const { plan: effectivePlan } = usePlanGuard();
   const emailProvider = isEmailUser();
 
   const [current, setCurrent] = useState("");
@@ -72,7 +74,7 @@ export default function Profile() {
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2">
               <Badge variant="secondary" className="uppercase text-xs">
-                {PLAN_LABELS[team.plan as keyof typeof PLAN_LABELS] ?? team.plan}
+                {PLAN_LABELS[effectivePlan]}
               </Badge>
               {isSubscribed ? (
                 <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">

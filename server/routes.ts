@@ -104,7 +104,8 @@ router.post("/teams", async (req, res) => {
   // Usamos o plano da primeira equipa que o utilizador possui como referência.
   const existingTeams = await storage.listTeamsForUser(req.user!.uid);
   const ownerTeam = existingTeams.find(t => t.ownerUid === req.user!.uid);
-  const currentPlan = (ownerTeam?.plan ?? "individual") as Plan;
+  const ownerOnTrial = ownerTeam ? (isTeamAccessible(ownerTeam) && !ownerTeam.subscribedAt) : false;
+  const currentPlan: Plan = ownerOnTrial ? "club" : ((ownerTeam?.plan ?? "individual") as Plan);
   const maxTeams = PLAN_FEATURES[currentPlan].maxTeams;
   const ownedCount = await storage.countTeamsOwnedByUser(req.user!.uid);
   if (maxTeams !== -1 && ownedCount >= maxTeams) {
@@ -247,7 +248,8 @@ async function requireMatchAccess(req: any, res: any, next: any) {
   req.teamId = match.teamId;
   if (!req.teamPlan) {
     const team = await storage.getTeamById(match.teamId);
-    req.teamPlan = (team?.plan ?? "individual") as Plan;
+    const onTrial = team && !team.subscribedAt && team.trialEndsAt && team.trialEndsAt > new Date();
+    req.teamPlan = onTrial ? "club" : ((team?.plan ?? "individual") as Plan);
   }
   next();
 }
@@ -380,7 +382,8 @@ router.post("/matches", async (req, res) => {
   if (!ok) return res.status(403).json({ error: "forbidden" });
   // Verificar limite de jogos por plano.
   const team = await storage.getTeamById(parsed.data.teamId);
-  const plan = (team?.plan ?? "individual") as Plan;
+  const onTrialMatch = team ? (isTeamAccessible(team) && !team.subscribedAt) : false;
+  const plan: Plan = onTrialMatch ? "club" : ((team?.plan ?? "individual") as Plan);
   const maxMatches = PLAN_FEATURES[plan].maxMatchesPerTeam;
   if (maxMatches !== -1) {
     const matchCount = await storage.countMatchesForTeam(parsed.data.teamId);
@@ -579,7 +582,8 @@ router.post("/ai/patterns", async (req, res) => {
   if (!ok) return res.status(403).json({ error: "forbidden" });
   // AI patterns — requer plano Pro ou superior
   const team = await storage.getTeamById(parsed.data.teamId);
-  const plan = (team?.plan ?? "individual") as Plan;
+  const onTrial = team ? (isTeamAccessible(team) && !team.subscribedAt) : false;
+  const plan: Plan = onTrial ? "club" : ((team?.plan ?? "individual") as Plan);
   if (!planMeetsMinimum(plan, "pro")) {
     return res.status(403).json({ error: "plan_required", requiredPlan: "pro", currentPlan: plan });
   }
@@ -733,7 +737,8 @@ router.post("/opponents", async (req, res) => {
   const ok = await storage.userBelongsToTeam(req.user!.uid, parsed.data.teamId);
   if (!ok) return res.status(403).json({ error: "forbidden" });
   const team = await storage.getTeamById(parsed.data.teamId);
-  const plan = (team?.plan ?? "individual") as Plan;
+  const onTrial = team ? (isTeamAccessible(team) && !team.subscribedAt) : false;
+  const plan: Plan = onTrial ? "club" : ((team?.plan ?? "individual") as Plan);
   if (!planMeetsMinimum(plan, "pro")) {
     return res.status(403).json({ error: "plan_required", requiredPlan: "pro", currentPlan: plan });
   }
@@ -1086,7 +1091,9 @@ router.post("/teams/:id/api-keys", async (req: any, res) => {
   const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
   if (!ok) return res.status(403).json({ error: "forbidden" });
   const team = await storage.getTeamById(req.params.id);
-  if (!planMeetsMinimum((team?.plan ?? "individual") as Plan, "pro")) {
+  const onTrialApiKey = team ? (isTeamAccessible(team) && !team.subscribedAt) : false;
+  const apiKeyPlan: Plan = onTrialApiKey ? "club" : ((team?.plan ?? "individual") as Plan);
+  if (!planMeetsMinimum(apiKeyPlan, "pro")) {
     return res.status(403).json({ error: "plan_required", requiredPlan: "pro" });
   }
   const name = z.string().min(1).max(60).safeParse(req.body.name);
@@ -1123,7 +1130,9 @@ router.post("/teams/:id/webhooks", async (req: any, res) => {
   const ok = await storage.userBelongsToTeam(req.user!.uid, req.params.id);
   if (!ok) return res.status(403).json({ error: "forbidden" });
   const team = await storage.getTeamById(req.params.id);
-  if (!planMeetsMinimum((team?.plan ?? "individual") as Plan, "pro")) {
+  const onTrialWebhook = team ? (isTeamAccessible(team) && !team.subscribedAt) : false;
+  const webhookPlan: Plan = onTrialWebhook ? "club" : ((team?.plan ?? "individual") as Plan);
+  if (!planMeetsMinimum(webhookPlan, "pro")) {
     return res.status(403).json({ error: "plan_required", requiredPlan: "pro" });
   }
   const parsed = webhookBodySchema.safeParse(req.body);
