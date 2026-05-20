@@ -18,6 +18,8 @@ import {
   userPreferences,
   apiKeys,
   webhooks,
+  boards,
+  boardSlides,
   type InsertTeam,
   type InsertPlayer,
   type InsertMatch,
@@ -28,6 +30,7 @@ import {
   type InsertLineup,
   type InsertSubstitution,
   type ApiKey,
+  type InsertBoard,
 } from "@shared/schema";
 import type {
   TrainingPriority,
@@ -889,6 +892,82 @@ export async function toggleWebhook(id: string, teamId: string, enabled: boolean
     .where(and(eq(webhooks.id, id), eq(webhooks.teamId, teamId)))
     .returning();
   return row;
+}
+
+// ── Boards ────────────────────────────────────────────────────────────────
+
+export async function listBoards(teamId: string) {
+  return db
+    .select()
+    .from(boards)
+    .where(eq(boards.teamId, teamId))
+    .orderBy(desc(boards.updatedAt));
+}
+
+export async function getBoard(id: string) {
+  const [row] = await db.select().from(boards).where(eq(boards.id, id));
+  return row ?? null;
+}
+
+export async function getBoardWithSlides(id: string) {
+  const [board] = await db.select().from(boards).where(eq(boards.id, id));
+  if (!board) return null;
+  const slides = await db
+    .select()
+    .from(boardSlides)
+    .where(eq(boardSlides.boardId, id))
+    .orderBy(boardSlides.position);
+  return { ...board, slides };
+}
+
+export async function createBoard(data: InsertBoard) {
+  const id = nanoid(12);
+  const [row] = await db
+    .insert(boards)
+    .values({ ...data, id })
+    .returning();
+  return row!;
+}
+
+export async function updateBoard(
+  id: string,
+  teamId: string,
+  data: { name?: string; description?: string },
+) {
+  const [row] = await db
+    .update(boards)
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(boards.id, id), eq(boards.teamId, teamId)))
+    .returning();
+  return row ?? null;
+}
+
+export async function deleteBoard(id: string, teamId: string) {
+  await db
+    .delete(boards)
+    .where(and(eq(boards.id, id), eq(boards.teamId, teamId)));
+}
+
+export async function replaceBoardSlides(
+  boardId: string,
+  slides: Array<{
+    id: string;
+    title: string;
+    position: number;
+    background: string;
+    elementsJson: string;
+  }>,
+) {
+  await db.delete(boardSlides).where(eq(boardSlides.boardId, boardId));
+  if (slides.length > 0) {
+    await db.insert(boardSlides).values(
+      slides.map((s) => ({ ...s, boardId })),
+    );
+  }
+  await db
+    .update(boards)
+    .set({ updatedAt: new Date() })
+    .where(eq(boards.id, boardId));
 }
 
 // ── Admin ─────────────────────────────────────────────────────────────────

@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Trash2, Upload, UserCog, Users } from "lucide-react";
+import { Camera, Plus, Trash2, Upload, UserCog, Users } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTeam } from "@/hooks/useTeam";
 import { api } from "@/lib/api";
@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -202,6 +202,7 @@ export default function Players() {
               <Card className={p.active ? "" : "opacity-60"}>
                 <CardContent className="p-4 flex items-center gap-3">
                   <Avatar className="h-12 w-12 shrink-0">
+                    {p.photoUrl && <AvatarImage src={p.photoUrl} alt={`${p.firstName} ${p.lastName}`} className="object-cover" />}
                     <AvatarFallback>
                       {p.firstName[0]}
                       {p.lastName[0]}
@@ -284,6 +285,32 @@ function PlayerDialog({
   const [position, setPosition] = useState<Position>(editing?.position ?? "OH");
   const [heightCm, setHeightCm] = useState(editing?.heightCm ?? "");
   const [active, setActive] = useState(editing?.active ?? true);
+  const [photoUrl, setPhotoUrl] = useState<string | undefined>(editing?.photoUrl ?? undefined);
+  const [photoLoading, setPhotoLoading] = useState(false);
+
+  async function handlePhotoFile(file: File) {
+    setPhotoLoading(true);
+    try {
+      const compressed = await new Promise<string>((resolve) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+          const MAX = 400;
+          const ratio = Math.min(MAX / img.width, MAX / img.height, 1);
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.round(img.width * ratio);
+          canvas.height = Math.round(img.height * ratio);
+          canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+          URL.revokeObjectURL(url);
+          resolve(canvas.toDataURL("image/jpeg", 0.78));
+        };
+        img.src = url;
+      });
+      setPhotoUrl(compressed);
+    } finally {
+      setPhotoLoading(false);
+    }
+  }
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -295,6 +322,7 @@ function PlayerDialog({
         position,
         heightCm: heightCm === "" ? null : Number(heightCm),
         active,
+        photoUrl: photoUrl ?? null,
       };
       if (editing) {
         return api.patch<Player>(
@@ -325,6 +353,34 @@ function PlayerDialog({
           saveMutation.mutate();
         }}
       >
+        {/* Photo upload */}
+        <div className="flex justify-center">
+          <label className="relative cursor-pointer group">
+            <div className="h-20 w-20 rounded-full overflow-hidden bg-muted flex items-center justify-center text-2xl font-bold text-muted-foreground border-2 border-dashed border-muted-foreground/30 group-hover:border-primary transition-colors">
+              {photoUrl ? (
+                <img src={photoUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <span>{firstName?.[0]}{lastName?.[0]}</span>
+              )}
+            </div>
+            <div className="absolute bottom-0 right-0 h-6 w-6 rounded-full bg-primary flex items-center justify-center shadow-sm">
+              {photoLoading ? (
+                <span className="text-[10px] text-white">…</span>
+              ) : (
+                <Camera className="h-3 w-3 text-white" />
+              )}
+            </div>
+            <input
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handlePhotoFile(file);
+              }}
+            />
+          </label>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="firstName">{t("players.dialog.firstName")}</Label>
