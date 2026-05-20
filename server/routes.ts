@@ -1226,3 +1226,73 @@ router.delete("/push/subscribe", async (req: any, res) => {
     .where(eq(pushSubscriptions.endpoint, endpoint));
   res.status(204).end();
 });
+
+// ── Boards (apresentações táticas) ────────────────────────────────────────
+
+const boardNameSchema = z.object({
+  teamId: z.string().min(1),
+  name: z.string().min(1).max(120),
+  description: z.string().max(500).optional(),
+});
+
+router.get("/boards", requireTeamAccess, async (req: any, res) => {
+  res.json(await storage.listBoards(req.teamId));
+});
+
+router.post("/boards", async (req, res) => {
+  const parsed = boardNameSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json(parsed.error.flatten());
+  const ok = await storage.userBelongsToTeam(req.user!.uid, parsed.data.teamId);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  const board = await storage.createBoard(parsed.data);
+  res.status(201).json(board);
+});
+
+router.get("/boards/:id", async (req, res) => {
+  const board = await storage.getBoardWithSlides(req.params.id);
+  if (!board) return res.status(404).json({ error: "not found" });
+  const ok = await storage.userBelongsToTeam(req.user!.uid, board.teamId);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  res.json(board);
+});
+
+router.patch("/boards/:id", async (req, res) => {
+  const board = await storage.getBoard(req.params.id);
+  if (!board) return res.status(404).json({ error: "not found" });
+  const ok = await storage.userBelongsToTeam(req.user!.uid, board.teamId);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  const parsed = z
+    .object({ name: z.string().min(1).max(120).optional(), description: z.string().max(500).optional() })
+    .safeParse(req.body);
+  if (!parsed.success) return res.status(400).json(parsed.error.flatten());
+  const updated = await storage.updateBoard(req.params.id, board.teamId, parsed.data);
+  res.json(updated);
+});
+
+router.delete("/boards/:id", async (req, res) => {
+  const board = await storage.getBoard(req.params.id);
+  if (!board) return res.status(404).json({ error: "not found" });
+  const ok = await storage.userBelongsToTeam(req.user!.uid, board.teamId);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  await storage.deleteBoard(req.params.id, board.teamId);
+  res.status(204).end();
+});
+
+const slideSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().max(120).default(""),
+  position: z.number().int().min(0),
+  background: z.string().min(1),
+  elementsJson: z.string(),
+});
+
+router.put("/boards/:id/slides", async (req, res) => {
+  const board = await storage.getBoard(req.params.id);
+  if (!board) return res.status(404).json({ error: "not found" });
+  const ok = await storage.userBelongsToTeam(req.user!.uid, board.teamId);
+  if (!ok) return res.status(403).json({ error: "forbidden" });
+  const parsed = z.array(slideSchema).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json(parsed.error.flatten());
+  await storage.replaceBoardSlides(req.params.id, parsed.data);
+  res.json({ ok: true });
+});

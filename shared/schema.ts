@@ -81,6 +81,7 @@ export const players = pgTable(
     dominantHand: text("dominant_hand", { enum: ["left", "right"] }),
     birthDate: text("birth_date"),
     active: boolean("active").notNull().default(true),
+    photoUrl: text("photo_url"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
   (t) => ({ byTeam: index("players_team_idx").on(t.teamId) }),
@@ -456,6 +457,53 @@ export const userPreferences = pgTable("user_preferences", {
 
 export const insertUserPreferencesSchema = createInsertSchema(userPreferences);
 export type UserPreferences = InferSelectModel<typeof userPreferences>;
+
+// ── Boards (apresentações táticas) ───────────────────────────────────────
+export const boards = pgTable(
+  "boards",
+  {
+    id: text("id").primaryKey(),
+    teamId: text("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => ({ byTeam: index("boards_team_idx").on(t.teamId) }),
+);
+
+export const boardSlides = pgTable(
+  "board_slides",
+  {
+    id: text("id").primaryKey(),
+    boardId: text("board_id")
+      .notNull()
+      .references(() => boards.id, { onDelete: "cascade" }),
+    title: text("title").notNull().default(""),
+    position: integer("position").notNull().default(0),
+    background: text("background").notNull().default("#1e293b"),
+    elementsJson: text("elements_json").notNull().default("[]"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({ byBoard: index("board_slides_board_idx").on(t.boardId) }),
+);
+
+export const insertBoardSchema = createInsertSchema(boards).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type Board = InferSelectModel<typeof boards>;
+export type InsertBoard = z.infer<typeof insertBoardSchema>;
+
+export const insertBoardSlideSchema = createInsertSchema(boardSlides).omit({
+  id: true,
+  createdAt: true,
+});
+export type BoardSlide = InferSelectModel<typeof boardSlides>;
+export type InsertBoardSlide = z.infer<typeof insertBoardSlideSchema>;
 
 // ── Push subscriptions (Web Push / VAPID) ────────────────────────────────
 export const pushSubscriptions = pgTable("push_subscriptions", {

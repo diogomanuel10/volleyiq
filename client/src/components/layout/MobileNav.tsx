@@ -14,12 +14,13 @@ import {
   UserCircle,
   Menu,
   X,
+  Building2,
+  LayoutPanelLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { usePlanGuard } from "@/hooks/usePlanGuard";
-import { Building2 } from "lucide-react";
 
 const primaryNavKeys = [
   { href: "/", icon: LayoutDashboard, key: "dashboard" },
@@ -38,6 +39,7 @@ const allNavKeys = [
   { href: "/matchday", icon: ClipboardCheck, key: "matchDay" },
   { href: "/reports", icon: FileText, key: "scoutingReport" },
   { href: "/scenario", icon: Shuffle, key: "scenario" },
+  { href: "/boards", icon: LayoutPanelLeft, key: "boards" },
   { href: "/post-match", icon: CalendarDays, key: "postMatch" },
   { href: "/pricing", icon: Sparkles, key: "pricing" },
   { href: "/settings", icon: Settings, key: "settings" },

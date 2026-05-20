@@ -16,6 +16,7 @@ import {
   Webhook,
   BookOpen,
   Code2,
+  LayoutPanelLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebarCollapsed } from "@/lib/sidebar";
@@ -33,6 +34,7 @@ const NAV_ITEMS = [
   { href: "/matchday", icon: ClipboardCheck, key: "matchDay" },
   { href: "/reports", icon: FileText, key: "scoutingReport" },
   { href: "/scenario", icon: Shuffle, key: "scenario" },
+  { href: "/boards", icon: LayoutPanelLeft, key: "boards" },
   { href: "/post-match", icon: CalendarDays, key: "postMatch" },
   { href: "/getting-started", icon: BookOpen, key: "gettingStarted" },
   { href: "/pricing", icon: Sparkles, key: "pricing" },
@@ -117,6 +119,8 @@ export function Sidebar() {
               ? "Chaves de API"
               : it.key === "webhooks"
               ? "Webhooks"
+              : it.key === "boards"
+              ? "Apresentações"
               : it.key === "gettingStarted"
               ? "Como Começar"
               : it.key === "apiDocs"
