@@ -30,7 +30,52 @@ export type DB = typeof db;
 console.log("[db] bootstrap start");
 
 const bootstrapStmts: Array<[string, string]> = [
-  ["photo_url", `ALTER TABLE players ADD COLUMN IF NOT EXISTS photo_url text`],
+  // Tabelas que migrate() nunca criou (DB foi inicializada via drizzle-kit push)
+  ["user_preferences", `CREATE TABLE IF NOT EXISTS user_preferences (
+      uid text PRIMARY KEY,
+      language text NOT NULL DEFAULT 'pt-PT',
+      updated_at timestamp NOT NULL DEFAULT now()
+    )`],
+  ["push_subscriptions", `CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id text PRIMARY KEY,
+      uid text NOT NULL,
+      team_id text REFERENCES teams(id) ON DELETE CASCADE,
+      endpoint text NOT NULL UNIQUE,
+      p256dh text NOT NULL,
+      auth text NOT NULL,
+      created_at timestamp NOT NULL DEFAULT now()
+    )`],
+  ["api_keys", `CREATE TABLE IF NOT EXISTS api_keys (
+      id text PRIMARY KEY,
+      team_id text NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+      name text NOT NULL,
+      key_hash text NOT NULL UNIQUE,
+      key_prefix text NOT NULL,
+      created_at timestamp NOT NULL DEFAULT now(),
+      last_used_at timestamp,
+      revoked_at timestamp
+    )`],
+  ["webhooks", `CREATE TABLE IF NOT EXISTS webhooks (
+      id text PRIMARY KEY,
+      team_id text NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+      name text NOT NULL,
+      url text NOT NULL,
+      secret text,
+      enabled boolean NOT NULL DEFAULT true,
+      created_at timestamp NOT NULL DEFAULT now(),
+      last_fired_at timestamp,
+      last_status integer,
+      last_error text
+    )`],
+  // Colunas novas em tabelas existentes
+  ["teams.trial_ends_at",   `ALTER TABLE teams ADD COLUMN IF NOT EXISTS trial_ends_at timestamp`],
+  ["teams.subscribed_at",   `ALTER TABLE teams ADD COLUMN IF NOT EXISTS subscribed_at timestamp`],
+  ["teams.easypay_sub_id",  `ALTER TABLE teams ADD COLUMN IF NOT EXISTS easypay_subscription_id text`],
+  ["teams.pdf_count",       `ALTER TABLE teams ADD COLUMN IF NOT EXISTS pdf_exports_count integer NOT NULL DEFAULT 0`],
+  ["teams.pdf_month",       `ALTER TABLE teams ADD COLUMN IF NOT EXISTS pdf_exports_month text DEFAULT ''`],
+  ["teams.invite_code",     `ALTER TABLE teams ADD COLUMN IF NOT EXISTS invite_code text`],
+  ["players.photo_url",     `ALTER TABLE players ADD COLUMN IF NOT EXISTS photo_url text`],
+  // Novas tabelas de apresentações (Fase 2)
   ["boards", `CREATE TABLE IF NOT EXISTS boards (
       id text PRIMARY KEY,
       team_id text NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
@@ -39,7 +84,7 @@ const bootstrapStmts: Array<[string, string]> = [
       created_at timestamp NOT NULL DEFAULT now(),
       updated_at timestamp NOT NULL DEFAULT now()
     )`],
-  ["boards_idx", `CREATE INDEX IF NOT EXISTS boards_team_idx ON boards (team_id)`],
+  ["boards_idx",      `CREATE INDEX IF NOT EXISTS boards_team_idx ON boards (team_id)`],
   ["board_slides", `CREATE TABLE IF NOT EXISTS board_slides (
       id text PRIMARY KEY,
       board_id text NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
