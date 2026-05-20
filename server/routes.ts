@@ -615,8 +615,8 @@ router.post("/ai/chat", async (req: any, res) => {
   }
 
   try {
-    const answer = await teamChat(teamId, question, history);
-    res.json({ answer });
+    const result = await teamChat(teamId, question, history);
+    res.json(result);
   } catch (err: any) {
     console.error("chat error", err);
     res.status(500).json({ error: "ai_failed" });

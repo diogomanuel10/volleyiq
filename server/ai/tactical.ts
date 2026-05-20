@@ -28,6 +28,36 @@ export interface TacticalContext {
   opponentRun: number;
 }
 
+const TOOL_INPUT_SCHEMA = {
+  type: "object" as const,
+  properties: {
+    suggestions: {
+      type: "array",
+      description: "2 to 3 tactical suggestions, highest urgency first",
+      items: {
+        type: "object",
+        properties: {
+          type: {
+            type: "string",
+            enum: ["timeout", "serve", "sub", "rotation", "attack", "defense"],
+          },
+          text: {
+            type: "string",
+            description: "Max 12 words. Direct, actionable, in Portuguese.",
+          },
+          urgency: { type: "string", enum: ["high", "medium", "low"] },
+        },
+        required: ["type", "text", "urgency"],
+        additionalProperties: false,
+      },
+      minItems: 1,
+      maxItems: 3,
+    },
+  },
+  required: ["suggestions"],
+  additionalProperties: false,
+};
+
 export async function getTacticalSuggestions(
   ctx: TacticalContext,
 ): Promise<TacticalSuggestion[]> {
@@ -35,7 +65,7 @@ export async function getTacticalSuggestions(
 
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
-  const system = `És o assistente tático de um treinador de voleibol de elite. Recebes o estado em tempo real do jogo e respondes com 2-3 sugestões táticas CURTAS e accionáveis em português de Portugal. Cada sugestão tem no máximo 12 palavras. Foca no que fazer AGORA. Sê direto. Nunca repitas o óbvio. Responde SEMPRE em JSON válido.`;
+  const system = `És o assistente tático de um treinador de voleibol de elite. Recebes o estado em tempo real do jogo e respondes com 2-3 sugestões táticas CURTAS e accionáveis em português de Portugal. Cada sugestão tem no máximo 12 palavras. Foca no que fazer AGORA. Sê direto. Nunca repitas o óbvio.`;
 
   const userLines = [
     `Jogo: Set ${ctx.setNumber} · vs ${ctx.opponent} · ${ctx.homeScore}-${ctx.awayScore} · ${ctx.servingTeam === "home" ? "Nós" : "Adversário"} a servir · Rotação ${ctx.rotation}`,
@@ -56,9 +86,6 @@ export async function getTacticalSuggestions(
       .join(" · ")}`,
     "",
     `Kill% hoje: ${ctx.teamKillPctToday}% · Side-out hoje: ${ctx.teamSideOutPctToday}%`,
-    "",
-    `Responde com JSON: { "suggestions": [{ "type": "timeout"|"serve"|"sub"|"rotation"|"attack"|"defense", "text": "...", "urgency": "high"|"medium"|"low" }] }`,
-    "Máximo 3 sugestões. Prioriza urgência alta quando aplicável.",
   ]
     .filter(Boolean)
     .join("\n");
@@ -67,22 +94,25 @@ export async function getTacticalSuggestions(
     const resp = await client.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 512,
-      temperature: 0.4,
       system,
+      tools: [
+        {
+          name: "report_suggestions",
+          description: "Report 2-3 real-time tactical suggestions for the coach",
+          input_schema: TOOL_INPUT_SCHEMA,
+        },
+      ],
+      tool_choice: { type: "tool", name: "report_suggestions" },
       messages: [{ role: "user", content: userLines }],
     });
 
-    const text = resp.content
-      .filter((b): b is Anthropic.TextBlock => b.type === "text")
-      .map((b) => b.text)
-      .join("");
+    const toolBlock = resp.content.find(
+      (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
+    );
+    if (!toolBlock) throw new Error("no tool_use block");
 
-    const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-    const raw = fence ? fence[1] : text;
-    const start = raw.indexOf("{");
-    const end = raw.lastIndexOf("}");
-    const parsed = JSON.parse(raw.slice(start, end + 1));
-    return (parsed.suggestions ?? []).slice(0, 3) as TacticalSuggestion[];
+    const data = toolBlock.input as { suggestions: TacticalSuggestion[] };
+    return (data.suggestions ?? []).slice(0, 3);
   } catch {
     return mockSuggestions(ctx);
   }

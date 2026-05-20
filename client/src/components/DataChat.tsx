@@ -30,6 +30,7 @@ export function DataChat({
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const [isMock, setIsMock] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -46,12 +47,13 @@ export function DataChat({
       question: string;
       history: ChatMessage[];
     }) =>
-      api.post<{ answer: string }>("/api/ai/chat", {
+      api.post<{ answer: string; mock?: boolean }>("/api/ai/chat", {
         teamId,
         question,
         history,
       }),
     onSuccess: (data, vars) => {
+      if (data.mock) setIsMock(true);
       setMessages((prev) => [
         ...prev,
         { role: "user", content: vars.question },
@@ -94,6 +96,11 @@ export function DataChat({
             <Badge variant="outline" className="text-xs font-normal">
               Beta
             </Badge>
+            {isMock && (
+              <Badge variant="secondary" className="text-xs font-normal text-amber-600 border-amber-300">
+                Demo
+              </Badge>
+            )}
           </CardTitle>
           {open ? (
             <ChevronUp className="h-4 w-4 text-muted-foreground" />

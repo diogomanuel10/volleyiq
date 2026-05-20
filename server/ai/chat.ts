@@ -139,22 +139,21 @@ export async function teamChat(
   teamId: string,
   question: string,
   history: ChatMessage[],
-): Promise<string> {
+): Promise<{ answer: string; mock: boolean }> {
   if (AI_MOCK) {
-    return "(Modo demonstração) Com base nos dados, a equipa tem uma boa taxa de kill mas pode melhorar na receção.";
+    return { answer: await buildMockAnswer(teamId, question), mock: true };
   }
 
   const systemPrompt = await buildSystemPrompt(teamId);
 
   const client = new Anthropic();
 
-  // Keep last 10 messages for context
   const trimmedHistory = history.slice(-10);
 
   const response = await client.messages.create({
-    model: "claude-sonnet-4-6",
+    model: "claude-opus-4-7",
     max_tokens: 1024,
-    temperature: 0.3,
+    thinking: { type: "adaptive" },
     system: systemPrompt,
     messages: [
       ...trimmedHistory.map((m) => ({
@@ -165,7 +164,35 @@ export async function teamChat(
     ],
   });
 
-  const block = response.content[0];
-  if (block.type === "text") return block.text;
-  return "Não foi possível gerar uma resposta.";
+  const block = response.content.find((b) => b.type === "text");
+  if (block && block.type === "text") return { answer: block.text, mock: false };
+  return { answer: "Não foi possível gerar uma resposta.", mock: false };
+}
+
+async function buildMockAnswer(teamId: string, question: string): Promise<string> {
+  const team = await storage.getTeamById(teamId);
+  const dashboard = await buildDashboard(teamId);
+  const kpis = dashboard.kpis;
+  const teamName = team?.name ?? "a equipa";
+
+  const q = question.toLowerCase();
+
+  if (q.includes("rotação") || q.includes("rotation")) {
+    const best = dashboard.rotationStats
+      .filter((r) => r.receiveRallies > 0)
+      .sort((a, b) => b.sideOutPct - a.sideOutPct)[0];
+    if (best) {
+      return `[Modo demo — configure ANTHROPIC_API_KEY para respostas reais]\n\nCom base nos dados de ${teamName}, a melhor rotação em side-out é a P${best.rotation} com ${best.sideOutPct}%.`;
+    }
+  }
+
+  if (q.includes("kill") || q.includes("ataque") || q.includes("melhor forma")) {
+    return `[Modo demo — configure ANTHROPIC_API_KEY para respostas reais]\n\nO Kill% global de ${teamName} nas últimas partidas é ${kpis.killPct}%. Consulte o separador de jogadoras para ver quem lidera.`;
+  }
+
+  if (q.includes("receção") || q.includes("passe") || q.includes("recepção")) {
+    return `[Modo demo — configure ANTHROPIC_API_KEY para respostas reais]\n\nO Pass Rating médio de ${teamName} é ${kpis.passRating}. Um valor acima de 2.0 indica boa qualidade de passe.`;
+  }
+
+  return `[Modo demo — configure ANTHROPIC_API_KEY para respostas reais]\n\nDados actuais de ${teamName}: Kill% ${kpis.killPct}%, Side-out ${kpis.sideOutPct}%, Pass ${kpis.passRating}, Ace% ${kpis.serveAcePct}%.`;
 }

@@ -5,53 +5,74 @@ import type {
   PatternDetectionInput,
 } from "@shared/types";
 
-/**
- * Pattern Detection. Em modo mock (AI_MOCK=true ou sem ANTHROPIC_API_KEY)
- * devolve três padrões verosímeis para desbloquear UI e E2E.
- */
-
 const AI_MOCK = process.env.AI_MOCK === "true" || !process.env.ANTHROPIC_API_KEY;
 
 const patternSchema = z.object({
   id: z.string(),
   title: z.string(),
   category: z.enum(["serve", "attack", "rotation", "setter", "reception"]),
-  confidence: z.number().min(0).max(100),
+  confidence: z.number().int().min(0).max(100),
   evidence: z.string(),
   recommendation: z.string(),
 });
 
-const responseSchema = z.object({
-  patterns: z.array(patternSchema).min(1).max(8),
-});
+const TOOL_INPUT_SCHEMA = {
+  type: "object" as const,
+  properties: {
+    patterns: {
+      type: "array",
+      description: "List of detected tactical patterns, 1 to 8 items",
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "Unique short identifier, e.g. 'p-serve-1'" },
+          title: { type: "string", description: "Short title of the pattern (max 10 words)" },
+          category: {
+            type: "string",
+            enum: ["serve", "attack", "rotation", "setter", "reception"],
+          },
+          confidence: {
+            type: "integer",
+            description: "Confidence level 0-100. Lower when sample is small.",
+          },
+          evidence: {
+            type: "string",
+            description: "One sentence citing concrete numbers from the data",
+          },
+          recommendation: {
+            type: "string",
+            description: "One actionable sentence for the opposing coach",
+          },
+        },
+        required: ["id", "title", "category", "confidence", "evidence", "recommendation"],
+        additionalProperties: false,
+      },
+      minItems: 1,
+      maxItems: 8,
+    },
+  },
+  required: ["patterns"],
+  additionalProperties: false,
+};
 
-const SYSTEM_PROMPT = `És um analista de voleibol senior. A partir do dataset
-estruturado do adversário, identifica padrões táticos recorrentes e escreve
-uma recomendação accionável para a equipa que vai defrontá-lo. Responde
-SEMPRE em JSON válido que satisfaça exactamente o schema pedido. Não
-inventes dados que não estejam no input; quando a evidência for fraca,
-reduz a confidence.`;
+const SYSTEM_PROMPT = `És um analista de voleibol sénior. A partir dos dados estruturados do adversário, identifica padrões táticos recorrentes e escreve uma recomendação accionável para a equipa que o vai defrontar. Usa apenas os dados fornecidos — quando a evidência for fraca, reduz a confidence. Nunca inventes dados.`;
 
 function buildUserPrompt(input: PatternDetectionInput) {
   return [
     `Adversário: ${input.opponent}`,
     `Tamanho de amostra (acções): ${input.sampleSize}`,
     "",
-    "Serve targets (zona -> nº):",
+    "Serve targets (zona → nº):",
     JSON.stringify(input.serveTargets),
     "",
-    "Distribuição de ataque por rotação (rotação -> zona -> nº):",
+    "Distribuição de ataque por rotação (rotação → zona → nº):",
     JSON.stringify(input.attackByRotation),
     "",
     "Side-out % por rotação:",
     JSON.stringify(input.rotationSideOut),
     "",
-    "Distribuição do distribuidor (pos -> nº de sets):",
+    "Distribuição do distribuidor (posição → nº de sets):",
     JSON.stringify(input.setterDistribution),
-    "",
-    "Devolve JSON com a forma: { patterns: DetectedPattern[] }.",
-    "Categorias permitidas: serve | attack | rotation | setter | reception.",
-    "Confidence é 0..100 (inteiro).",
   ].join("\n");
 }
 
@@ -61,30 +82,33 @@ export async function detectPatterns(
   if (AI_MOCK) return mockPatterns(input);
 
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+
   const resp = await client.messages.create({
     model: "claude-opus-4-7",
     max_tokens: 2048,
+    thinking: { type: "adaptive" },
     system: SYSTEM_PROMPT,
+    tools: [
+      {
+        name: "report_patterns",
+        description: "Report all detected tactical patterns from the opponent dataset",
+        input_schema: TOOL_INPUT_SCHEMA,
+      },
+    ],
+    tool_choice: { type: "tool", name: "report_patterns" },
     messages: [{ role: "user", content: buildUserPrompt(input) }],
   });
 
-  const text = resp.content
-    .filter((b): b is Anthropic.TextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("");
+  const toolBlock = resp.content.find(
+    (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
+  );
+  if (!toolBlock) throw new Error("AI: no tool_use block returned");
 
-  const json = extractJson(text);
-  const parsed = responseSchema.parse(json);
+  const parsed = z
+    .object({ patterns: z.array(patternSchema).min(1).max(8) })
+    .parse(toolBlock.input);
+
   return parsed.patterns;
-}
-
-function extractJson(text: string): unknown {
-  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const raw = fence ? fence[1] : text;
-  const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
-  if (start === -1 || end === -1) throw new Error("AI: no JSON found");
-  return JSON.parse(raw.slice(start, end + 1));
 }
 
 function mockPatterns(input: PatternDetectionInput): DetectedPattern[] {
@@ -92,6 +116,9 @@ function mockPatterns(input: PatternDetectionInput): DetectedPattern[] {
     Object.entries(input.serveTargets).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "5";
   const weakestRotation =
     Object.entries(input.rotationSideOut).sort((a, b) => a[1] - b[1])[0]?.[0] ?? "R1";
+  const topSetterPos =
+    Object.entries(input.setterDistribution).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "OH";
+
   return [
     {
       id: "p-serve",
@@ -99,23 +126,23 @@ function mockPatterns(input: PatternDetectionInput): DetectedPattern[] {
       category: "serve",
       confidence: 82,
       evidence: `Em ${input.sampleSize} acções, a maior fatia de serviços foi para a zona ${topServeZone}.`,
-      recommendation: `Prepara o passador dessa zona para serviço em suspensão, e ajusta o recuo do OH que a cobre.`,
+      recommendation: `Prepara o passador dessa zona para serviço em suspensão e ajusta o recuo do OH que a cobre.`,
     },
     {
       id: "p-rotation",
       title: `Rotação ${weakestRotation} vulnerável em side-out`,
       category: "rotation",
       confidence: 71,
-      evidence: `Side-out % mais baixo foi registado na rotação ${weakestRotation}.`,
+      evidence: `Side-out % mais baixo registado na rotação ${weakestRotation}.`,
       recommendation: `Força serviços agressivos quando o adversário chegar a ${weakestRotation}; considera time-out tático se conseguires 2 pontos seguidos.`,
     },
     {
-      id: "p-attack",
-      title: `Preferência clara do distribuidor pelo OH`,
+      id: "p-setter",
+      title: `Distribuidor prefere posição ${topSetterPos}`,
       category: "setter",
       confidence: 64,
-      evidence: "O distribuidor distribui maioritariamente para o OH em situação neutra.",
-      recommendation: `Define um duplo bloco escalonado sobre o OH quando o passe for de qualidade boa/perfeita.`,
+      evidence: `A posição ${topSetterPos} recebeu mais sets do que qualquer outra em situação neutra.`,
+      recommendation: `Define um duplo bloco escalonado sobre o ${topSetterPos} quando o passe for de qualidade boa ou perfeita.`,
     },
   ];
 }
