@@ -25,16 +25,9 @@ const client = postgres(url, {
 export const db = drizzle(client, { schema });
 export type DB = typeof db;
 
-// Corre as migrações SQL (drizzle/*.sql) no arranque. Idempotente — se a DB
-// já tem as migrações aplicadas, não faz nada. Crítico para primeiros
-// deploys em que a DB existe mas está vazia.
-const here = path.dirname(fileURLToPath(import.meta.url));
-const migrationsFolder = path.resolve(here, "../drizzle");
-await migrate(db, { migrationsFolder });
-
-// Belt-and-suspenders: aplica diretamente as colunas/tabelas novas com
-// IF NOT EXISTS, independente do estado do sistema de migrações Drizzle.
-// Seguro correr múltiplas vezes — nunca destrói dados existentes.
+// Bootstrap direto com IF NOT EXISTS — corre PRIMEIRO, antes de migrate(),
+// para garantir que as tabelas existem independentemente do estado do journal.
+// Seguro correr múltiplas vezes.
 try {
   await client`ALTER TABLE players ADD COLUMN IF NOT EXISTS photo_url text`;
   await client`
@@ -60,6 +53,17 @@ try {
     )
   `;
   await client`CREATE INDEX IF NOT EXISTS board_slides_board_idx ON board_slides (board_id)`;
+  console.log("[db] schema bootstrap OK");
 } catch (err) {
   console.error("[db] schema bootstrap error:", err);
+}
+
+// Migrações Drizzle — em try/catch para que um journal inconsistente não
+// impeça o arranque. As tabelas críticas já estão garantidas pelo bootstrap.
+const here = path.dirname(fileURLToPath(import.meta.url));
+const migrationsFolder = path.resolve(here, "../drizzle");
+try {
+  await migrate(db, { migrationsFolder });
+} catch (err) {
+  console.error("[db] migrate error (non-fatal):", err);
 }
