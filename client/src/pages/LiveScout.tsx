@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -9,6 +9,7 @@ import {
   Keyboard,
   Loader2,
   Monitor,
+  MoreHorizontal,
   Radio,
   Repeat,
   SkipForward,
@@ -184,10 +185,25 @@ function Scout({
   const [state, dispatch] = useScoutState(mode);
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpTab, setHelpTab] = useState<ScoutHelpTab>("shortcuts");
+  const [overflowOpen, setOverflowOpen] = useState(false);
+  const overflowRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!overflowOpen) return;
+    function handler(e: MouseEvent) {
+      if (overflowRef.current && !overflowRef.current.contains(e.target as Node)) {
+        setOverflowOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [overflowOpen]);
   const [welcomeDismissed, setWelcomeDismissed] = useState(true);
   const [tabletMode, setTabletMode] = useState(() => {
     try {
-      return window.localStorage.getItem("volleyiq:scout:tabletMode") === "1";
+      const stored = window.localStorage.getItem("volleyiq:scout:tabletMode");
+      // Auto-activate on phones if user hasn't explicitly toggled it off
+      if (stored === null) return window.innerWidth < 768;
+      return stored === "1";
     } catch {
       return false;
     }
@@ -400,6 +416,7 @@ function Scout({
       if (!syncedIds.current.has(a.id)) {
         syncedIds.current.add(a.id);
         setPendingSync((n) => n + 1);
+        try { navigator.vibrate?.(30); } catch { /* unsupported */ }
         createAction.mutate(a, {
           onSuccess: () => setPendingSync((n) => Math.max(0, n - 1)),
           onError: (err: any) => {
@@ -843,51 +860,100 @@ function Scout({
               {savedLineup ? t("livescout.lineupButton") : t("livescout.setLineup")}
             </span>
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setSubOpen(true)}
-            disabled={onCourt.length === 0 || bench.length === 0}
-            title={t("livescout.subs")}
-          >
-            <Repeat className="h-4 w-4" />
-            <span className="hidden sm:inline ml-1">{t("livescout.subs")}</span>
-          </Button>
-          <Button
-            size="sm"
-            variant={tabletMode ? "secondary" : "ghost"}
-            onClick={() => {
-              const next = !tabletMode;
-              setTabletMode(next);
-              try {
-                window.localStorage.setItem(
-                  "volleyiq:scout:tabletMode",
-                  next ? "1" : "0",
-                );
-              } catch {
-                // ignora
-              }
-            }}
-            title="Modo tablet"
-          >
-            <Tablet className="h-4 w-4" />
-            <span className="hidden sm:inline ml-1">Tablet</span>
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => openHelp("shortcuts")}
-            title={t("livescout.helpButton")}
-            aria-label={t("livescout.helpAriaLabel")}
-          >
-            <Keyboard className="h-4 w-4" />
-          </Button>
-          <Button asChild size="sm" variant="ghost" title={t("livescout.secondScreen")}>
-            <Link href={`/second-screen/${matchId}`}>
-              <Monitor className="h-4 w-4" />
-              <span className="hidden sm:inline ml-1">{t("livescout.secondScreen")}</span>
-            </Link>
-          </Button>
+          {/* Secondary actions — visible on desktop, collapsed on mobile */}
+          <div className="hidden sm:flex items-center gap-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setSubOpen(true)}
+              disabled={onCourt.length === 0 || bench.length === 0}
+              title={t("livescout.subs")}
+            >
+              <Repeat className="h-4 w-4" />
+              <span className="hidden sm:inline ml-1">{t("livescout.subs")}</span>
+            </Button>
+            <Button
+              size="sm"
+              variant={tabletMode ? "secondary" : "ghost"}
+              onClick={() => {
+                const next = !tabletMode;
+                setTabletMode(next);
+                try {
+                  window.localStorage.setItem("volleyiq:scout:tabletMode", next ? "1" : "0");
+                } catch { /* ignora */ }
+              }}
+              title="Modo tablet"
+            >
+              <Tablet className="h-4 w-4" />
+              <span className="hidden sm:inline ml-1">Tablet</span>
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => openHelp("shortcuts")}
+              title={t("livescout.helpButton")}
+              aria-label={t("livescout.helpAriaLabel")}
+            >
+              <Keyboard className="h-4 w-4" />
+            </Button>
+            <Button asChild size="sm" variant="ghost" title={t("livescout.secondScreen")}>
+              <Link href={`/second-screen/${matchId}`}>
+                <Monitor className="h-4 w-4" />
+                <span className="hidden sm:inline ml-1">{t("livescout.secondScreen")}</span>
+              </Link>
+            </Button>
+          </div>
+
+          {/* Mobile overflow menu */}
+          <div className="sm:hidden relative" ref={overflowRef}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setOverflowOpen((v) => !v)}
+              aria-label="Mais opções"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+            {overflowOpen && (
+              <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border bg-popover shadow-lg py-1 text-sm">
+                <button
+                  className="flex w-full items-center gap-2 px-3 py-2 hover:bg-accent disabled:opacity-40"
+                  onClick={() => { setSubOpen(true); setOverflowOpen(false); }}
+                  disabled={onCourt.length === 0 || bench.length === 0}
+                >
+                  <Repeat className="h-4 w-4" /> {t("livescout.subs")}
+                </button>
+                <button
+                  className={cn(
+                    "flex w-full items-center gap-2 px-3 py-2 hover:bg-accent",
+                    tabletMode && "text-primary font-medium",
+                  )}
+                  onClick={() => {
+                    const next = !tabletMode;
+                    setTabletMode(next);
+                    try { window.localStorage.setItem("volleyiq:scout:tabletMode", next ? "1" : "0"); } catch { /* ignora */ }
+                    setOverflowOpen(false);
+                  }}
+                >
+                  <Tablet className="h-4 w-4" />
+                  {tabletMode ? "Desactivar modo telemóvel" : "Activar modo telemóvel"}
+                </button>
+                <button
+                  className="flex w-full items-center gap-2 px-3 py-2 hover:bg-accent"
+                  onClick={() => { openHelp("shortcuts"); setOverflowOpen(false); }}
+                >
+                  <Keyboard className="h-4 w-4" /> {t("livescout.helpButton")}
+                </button>
+                <Link
+                  href={`/second-screen/${matchId}`}
+                  className="flex w-full items-center gap-2 px-3 py-2 hover:bg-accent"
+                  onClick={() => setOverflowOpen(false)}
+                >
+                  <Monitor className="h-4 w-4" /> {t("livescout.secondScreen")}
+                </Link>
+              </div>
+            )}
+          </div>
           {match.status !== "live" && (
             <Button
               size="sm"

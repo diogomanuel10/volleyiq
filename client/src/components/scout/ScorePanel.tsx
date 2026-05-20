@@ -174,11 +174,11 @@ function ScoreBlock({
       <Button
         variant="ghost"
         size="icon"
-        className="h-6 w-6"
+        className="h-9 w-9"
         onClick={onDec}
         aria-label={`${label} -1`}
       >
-        <Minus className="h-3 w-3" />
+        <Minus className="h-4 w-4" />
       </Button>
       <div className="text-2xl font-bold tabular-nums min-w-[1.6ch] text-center">
         {score}
@@ -186,11 +186,11 @@ function ScoreBlock({
       <Button
         variant="ghost"
         size="icon"
-        className="h-6 w-6"
+        className="h-9 w-9"
         onClick={onInc}
         aria-label={`${label} +1`}
       >
-        <Plus className="h-3 w-3" />
+        <Plus className="h-4 w-4" />
       </Button>
     </div>
   );
