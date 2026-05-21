@@ -27,6 +27,7 @@ import {
   GripVertical,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { getLastKnownToken } from "@/lib/firebase";
 import { useTeam } from "@/hooks/useTeam";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -422,7 +423,10 @@ function BoardCanvas({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
-      onClick={onDeselect}
+      onPointerDown={(e) => {
+        // só desselecciona quando o clique vai direto ao canvas (não a um elemento)
+        if (e.target === e.currentTarget) onDeselect();
+      }}
     >
       {/* Background */}
       {isCourtBg && (
@@ -1027,15 +1031,36 @@ export default function BoardEditor() {
     };
   }, [save]);
 
-  // Warn browser before tab close / refresh if unsaved
+  // Guardar com keepalive no refresh/fecho do tab
   useEffect(() => {
-    function onBeforeUnload(e: BeforeUnloadEvent) {
+    function onBeforeUnload() {
       if (!isDirtyRef.current) return;
-      e.preventDefault();
+      const token = getLastKnownToken();
+      if (!token) return;
+      const payload = slidesRef.current.map((s, i) => ({
+        id: s.id,
+        title: s.title,
+        position: i,
+        background: s.background,
+        elementsJson: JSON.stringify(s.elements),
+      }));
+      // keepalive garante que o pedido é enviado mesmo que a página descarregue
+      void fetch(`/api/boards/${boardId}/slides`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+        keepalive: true,
+      });
+      void fetch(`/api/boards/${boardId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: boardNameRef.current }),
+        keepalive: true,
+      });
     }
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, []);
+  }, [boardId]);
 
   function markDirty(newSlides: BoardSlideData[]) {
     setIsDirty(true);
@@ -1109,9 +1134,15 @@ export default function BoardEditor() {
   }
 
   function moveElement(id: string, x: number, y: number) {
-    const newElements = activeSlide.elements.map((el) =>
-      el.id === id ? ({ ...el, x, y } as BoardElement) : el,
-    );
+    const newElements = activeSlide.elements.map((el) => {
+      if (el.id !== id) return el;
+      if (el.type === "arrow") {
+        const dx = x - el.x;
+        const dy = y - el.y;
+        return { ...el, x, y, x2: el.x2 + dx, y2: el.y2 + dy } as BoardElement;
+      }
+      return { ...el, x, y } as BoardElement;
+    });
     const newSlides = slides.map((s, i) =>
       i === activeIndex ? { ...s, elements: newElements } : s,
     );
@@ -1440,10 +1471,12 @@ export default function BoardEditor() {
         <div
           ref={containerRef}
           className="flex-1 overflow-auto p-2 flex items-start justify-center bg-muted/20"
-          onClick={() => {
-            setSelectedId(null);
-            setEditingTextId(null);
-            setShowBgPicker(false);
+          onPointerDown={(e) => {
+            if (e.target === e.currentTarget) {
+              setSelectedId(null);
+              setEditingTextId(null);
+              setShowBgPicker(false);
+            }
           }}
         >
           {activeSlide && (
