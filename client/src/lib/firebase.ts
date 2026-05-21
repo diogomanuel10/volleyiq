@@ -32,6 +32,12 @@ const DEV_USER: DevUser = {
 
 let app: FirebaseApp | null = null;
 let authReady: Promise<User | null> | null = null;
+let _lastKnownToken: string | null = null;
+
+/** Retorna o último token obtido, sem async — útil em beforeunload. */
+export function getLastKnownToken(): string | null {
+  return _lastKnownToken;
+}
 
 function getApp() {
   if (app || USE_DEV) return app;
@@ -139,9 +145,12 @@ export async function logout() {
 }
 
 export async function getIdToken(): Promise<string | null> {
-  if (USE_DEV) return "dev-token";
+  if (USE_DEV) { _lastKnownToken = "dev-token"; return "dev-token"; }
   const user = getAuth().currentUser;
-  return user ? user.getIdToken() : null;
+  if (!user) return null;
+  const token = await user.getIdToken();
+  _lastKnownToken = token;
+  return token;
 }
 
 export function isEmailUser(): boolean {
